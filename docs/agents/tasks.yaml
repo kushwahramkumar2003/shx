@@ -446,8 +446,10 @@ tasks:
       - T-ROUTE-1 mock local timeout → exactly one cloud call + one stderr notice
       - T-ROUTE-2 mode=local → zero cloud calls on any local outcome
       - confidence thresholds honored; --why routing trace populated
-    status: pending
-    owner: null
+    notes: verify=cargo xtask ci green; t_route_1_timeout_escalates_once, t_route_2_local_mode_never_calls_cloud, low_confidence_escalates, why_never_on_stdout routing trace.
+    status: completed
+    owner: grok-4.6
+    branch: feat/t-403-router
 
   - id: T-404
     title: Egress redaction + route security tests

@@ -11,6 +11,10 @@ While pre-1.0, breaking changes bump the **minor** version and are called out un
 
 ### Added
 
+- Local-first `BackendRouter`: escalate once on timeout/error/bad-output/low
+  confidence/slowness, announce on stderr, and record the trace in `--why`.
+  `mode=local` never calls cloud. Translate without `--offline` uses Ollama
+  (and cloud when a key is configured).
 - OpenAI-compatible backend (`POST /chat/completions`) with a per-`base_url`
   `json_schema` → `json_object` capability probe cached in meta. Works with no
   API key (LM Studio). Translate still requires `--offline` until T-403.

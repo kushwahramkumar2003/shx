@@ -215,7 +215,7 @@ fn json_out<'a>(out: &'a TranslateOut, exit_on_risk: bool) -> JsonOut<'a> {
         backend: JsonBackend {
             id: &out.backend_id,
             model: &out.model,
-            escalated_from: None,
+            escalated_from: out.escalated_from.as_deref(),
         },
         memory: JsonMemory {
             used: out.why.memory_used,
@@ -244,7 +244,16 @@ pub fn format_why(out: &TranslateOut) -> String {
         "  backend: {}  model: {}  from_cache: {}\n",
         out.backend_id, out.model, out.from_cache
     ));
-    s.push_str("  routing: local-first (placeholder; T-403)\n");
+    let tried = w.routing_tried.join(",");
+    let mut routing = format!(
+        "  routing: {} tried={tried} chosen={}",
+        w.routing_mode, w.routing_chosen
+    );
+    if let Some(reason) = &w.routing_reason {
+        routing.push_str(&format!(" reason={reason}"));
+    }
+    routing.push('\n');
+    s.push_str(&routing);
     s.push_str(&format!(
         "  profile: name={} ports=[{ports}] prefer={prefer}\n",
         w.profile_name
@@ -317,8 +326,13 @@ mod tests {
                 profile_name: "default".into(),
                 ports: vec![3000, 5432, 7000],
                 prefer_docker: true,
+                routing_mode: "local-first".into(),
+                routing_tried: vec!["mock".into()],
+                routing_chosen: "mock".into(),
+                routing_reason: None,
             },
             refused: None,
+            escalated_from: None,
         };
         assert_eq!(format_why(&out), include_str!("../tests/golden/why.txt"));
     }

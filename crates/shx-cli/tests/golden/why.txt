@@ -1,6 +1,6 @@
 why:
   backend: mock  model: fixture  from_cache: false
-  routing: local-first (placeholder; T-403)
+  routing: local-first tried=mock chosen=mock
   profile: name=default ports=[3000, 5432, 7000] prefer=docker
   memory: used=true entries=1 truncated=false tokens=12/1500
   history:

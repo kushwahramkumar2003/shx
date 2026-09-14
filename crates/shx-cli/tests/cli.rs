@@ -220,7 +220,17 @@ fn t_cli_3_exit_codes() {
         .assert()
         .code(2);
     shx().args(["--cloud", "run pg on 7000"]).assert().code(2);
-    shx().args(["run pg on 7000"]).assert().code(4);
+    let home = unique_home();
+    let cfg = home.join("shx.toml");
+    fs::write(
+        &cfg,
+        "[backend.local]\nbase_url = \"http://127.0.0.1:1\"\ntimeout_ms = 400\n",
+    )
+    .unwrap();
+    shx_in(&home)
+        .args(["--config", cfg.to_str().unwrap(), "run pg on 7000"])
+        .assert()
+        .code(4);
     shx()
         .args([
             "--offline",
@@ -547,7 +557,9 @@ fn why_never_on_stdout() {
     assert_eq!(stdout, FIXTURE);
     assert!(!stdout.contains("why:"), "why leaked to stdout: {stdout:?}");
     assert!(stderr.contains("why:"), "{stderr}");
-    assert!(stderr.contains("placeholder; T-403"), "{stderr}");
+    assert!(
+        stderr.contains("routing: local-first tried=mock chosen=mock"),
+        "{stderr}"
+    );
     assert!(stderr.contains("memory: used=false"), "{stderr}");
-    assert!(stderr.contains("routing: local-first"), "{stderr}");
 }

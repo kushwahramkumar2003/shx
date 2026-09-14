@@ -5,13 +5,17 @@ use std::io::{self, IsTerminal, Read};
 use std::path::PathBuf;
 use std::time::Instant;
 
-use shx_config::{Config, FlagOverrides};
+use shx_config::{BackendMode, Config, FlagOverrides};
 use shx_core::{
     Candidate, ContextBundle, EnvInfo, ForceBackend, Intent, IntentFlags, Interaction,
     NoopRedactor, Profile, PromptBuilder, RiskAssessment, RiskClassifier, RiskLevel,
     SecretRedactor,
 };
-use shx_llm::{Backend, BackendError, MockBackend};
+use shx_llm::{
+    AnthropicBackend, AnthropicSettings, Backend, BackendError, BackendRouter, MockBackend,
+    OllamaBackend, OllamaSettings, OpenAiCompatBackend, OpenAiCompatSettings, RouteMode,
+    RouterConfig,
+};
 use shx_memory::{ContextBudget, ContextBuilder, MemoryStore, SqliteStore, paths};
 
 use crate::Cli;
@@ -41,6 +45,8 @@ pub struct TranslateOut {
     pub why: WhyInfo,
     /// Set when the intent is refused (exit 6); no command is printed.
     pub refused: Option<String>,
+    /// Local backend id if the cloud answered after an escalation.
+    pub escalated_from: Option<String>,
 }
 
 /// Explainability payload. Never printed on stdout.
@@ -66,6 +72,14 @@ pub struct WhyInfo {
     pub ports: Vec<u16>,
     /// Docker preference.
     pub prefer_docker: bool,
+    /// Routing policy (`local-first` / `local` / `cloud`).
+    pub routing_mode: String,
+    /// Backend ids invoked, in order.
+    pub routing_tried: Vec<String>,
+    /// Backend that answered.
+    pub routing_chosen: String,
+    /// Why we left local, if we did.
+    pub routing_reason: Option<String>,
 }
 
 /// Failures the CLI maps onto the exit-code table.
@@ -110,14 +124,6 @@ pub fn run(
                 "--cloud unconfigured: set {var} (the name from backend.cloud.api_key_env)"
             )));
         }
-        return Err(PipelineError::Backend(
-            "cloud backend is not wired yet (T-401)".into(),
-        ));
-    }
-    if !cli.offline {
-        return Err(PipelineError::Backend(
-            "no local backend yet (T-102); use --offline for the mock fixture".into(),
-        ));
     }
 
     let text = resolve_intent(cli)?;
@@ -142,6 +148,7 @@ pub fn run(
             raw: String::new(),
             why: WhyInfo::default(),
             refused: Some(reason.to_string()),
+            escalated_from: None,
         });
     }
 
@@ -165,14 +172,23 @@ pub fn run(
         },
     };
 
-    let (ctx, why) = assemble_context(cli, config, &text);
+    let (ctx, mut why) = assemble_context(cli, config, &text);
     let req = PromptBuilder.build(&intent, &ctx, &NoopRedactor);
-    let backend = MockBackend::new();
+    let router = build_router(cli, config);
     let started = Instant::now();
-    let resp = backend
-        .translate(&req)
+    let routed = router
+        .route(&req)
         .map_err(|e: BackendError| PipelineError::Backend(e.to_string()))?;
     let latency_ms = started.elapsed().as_millis() as u64;
+    if let Some(notice) = &routed.trace.notice {
+        eprintln!("{notice}");
+    }
+    why.routing_mode = routed.trace.mode.as_str().to_string();
+    why.routing_tried = routed.trace.tried.clone();
+    why.routing_chosen = routed.trace.chosen.clone();
+    why.routing_reason = routed.trace.reason.clone();
+    let resp = routed.response;
+    let escalated_from = routed.trace.escalated_from;
 
     let mut candidates = resp.candidates;
     candidates.truncate(count as usize);
@@ -264,7 +280,77 @@ pub fn run(
         raw: resp.raw,
         why,
         refused: None,
+        escalated_from,
     })
+}
+
+fn build_router(cli: &Cli, config: &Config) -> BackendRouter {
+    let mode = route_mode(cli, config);
+    let cfg = RouterConfig {
+        mode,
+        escalate_below_confidence: config.backend.escalate_below_confidence,
+        local_slow_ms: config.backend.local_slow_ms,
+        complexity_skip_local: config.backend.complexity_skip_local,
+    };
+    if cli.offline {
+        let cfg = RouterConfig {
+            mode: RouteMode::LocalFirst,
+            ..cfg
+        };
+        return BackendRouter::new(Box::new(MockBackend::new()), None, cfg);
+    }
+    let local = OllamaBackend::new(OllamaSettings {
+        base_url: config.backend.local.base_url.clone(),
+        model: config.backend.local.model.clone(),
+        keep_alive: config.backend.local.keep_alive.clone(),
+        num_ctx: config.backend.local.num_ctx,
+        timeout_ms: config.backend.local.timeout_ms,
+    });
+    BackendRouter::new(Box::new(local), cloud_backend(config), cfg)
+}
+
+fn route_mode(cli: &Cli, config: &Config) -> RouteMode {
+    if cli.local {
+        return RouteMode::Local;
+    }
+    if cli.cloud {
+        return RouteMode::Cloud;
+    }
+    match config.backend.mode {
+        BackendMode::Local => RouteMode::Local,
+        BackendMode::Cloud => RouteMode::Cloud,
+        BackendMode::LocalFirst => RouteMode::LocalFirst,
+    }
+}
+
+fn cloud_backend(config: &Config) -> Option<Box<dyn Backend>> {
+    let c = &config.backend.cloud;
+    match c.kind.as_str() {
+        "anthropic" => {
+            if env::var_os(&c.api_key_env).is_none() && env::var_os("SHX_CLOUD_API_KEY").is_none() {
+                return None;
+            }
+            Some(Box::new(AnthropicBackend::new(AnthropicSettings {
+                model: c.model.clone(),
+                api_key_env: c.api_key_env.clone(),
+                timeout_ms: c.timeout_ms,
+                base_url: c
+                    .base_url
+                    .clone()
+                    .unwrap_or_else(|| "https://api.anthropic.com".into()),
+            })))
+        }
+        "openai-compat" => Some(Box::new(OpenAiCompatBackend::new(OpenAiCompatSettings {
+            base_url: c
+                .base_url
+                .clone()
+                .unwrap_or_else(|| "https://api.openai.com/v1".into()),
+            model: c.model.clone(),
+            api_key_env: c.api_key_env.clone(),
+            timeout_ms: c.timeout_ms,
+        }))),
+        _ => None,
+    }
 }
 
 /// True when the intent is too destructive to translate (exit 6).
