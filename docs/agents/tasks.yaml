@@ -1,0 +1,662 @@
+# Machine-readable task ledger for shx.
+# Mirror of TASK-BOARD.md — keep the two in sync (a Docs task updates both).
+# Agents: claim by setting status=in_progress and owner=<you>; complete per DoD.
+# status: pending | in_progress | completed | blocked
+# size: S | M | L   ·   serialize: true = serialization point (run first in wave)
+
+version: 1
+project: shx
+critical_path: [T-001, T-003, T-101, T-102, T-403, T-404, T-506, T-608]
+
+tasks:
+
+  # ── Wave 0 · M0 ──────────────────────────────────────────────────────────
+  - id: T-001
+    title: Workspace scaffold
+    milestone: M0
+    wave: 0
+    role: Release
+    size: L
+    serialize: true
+    deps: []
+    deliverables:
+      - Cargo.toml (workspace)
+      - rust-toolchain.toml
+      - crates/{shx-core,shx-llm,shx-memory,shx-config,shx-cli}/Cargo.toml
+      - xtask/
+      - .gitignore, rustfmt.toml, deny.toml
+      - LICENSE-MIT, LICENSE-APACHE
+    acceptance:
+      - cargo build --workspace and cargo test --workspace succeed on macOS/Linux/Windows
+      - cargo xtask ci runs the 9-step gate from docs/08-TESTING.md §5
+      - cargo run -p shx -- --version prints a version
+    notes: No tokio/reqwest (ADR-006). Pin toolchain. Depends-inward rule documented per crate. verify=cargo xtask ci green; cargo run -p shx -- --version → shx 0.0.0
+    status: completed
+    owner: grok-4.6
+    branch: feat/t-001-workspace-scaffold
+
+  # ── Wave 1 · M0 ──────────────────────────────────────────────────────────
+  - id: T-002
+    title: CI matrix + xtask verification
+    milestone: M0
+    wave: 1
+    role: Release
+    size: M
+    deps: [T-001]
+    deliverables: [.github/workflows/ci.yml, xtask/src/main.rs, deny.toml, typos.toml]
+    acceptance:
+      - CI green on ubuntu/macos-14/windows for a no-op PR
+      - a clippy warning fails CI; a typo fails CI
+    status: pending
+    owner: null
+
+  - id: T-003
+    title: Core types & frozen traits
+    milestone: M0
+    wave: 1
+    role: Architect
+    size: M
+    serialize: true
+    deps: [T-001]
+    deliverables:
+      - shx-core/src/types.rs
+      - shx-llm/src/backend.rs
+      - shx-memory/src/store.rs (trait + InMemoryStore stub)
+      - shx-core/src/redact.rs (trait + no-op impl)
+    acceptance:
+      - exact signatures from docs/02-ARCHITECTURE.md §4 compile
+      - doc comments on every public item
+      - serde round-trip test per type
+    notes: Project-wide serialization point. Architect sign-off required.
+    status: pending
+    owner: null
+
+  - id: T-004
+    title: Config loader
+    milestone: M0
+    wave: 1
+    role: Core
+    size: M
+    deps: [T-001]
+    deliverables: [shx-config/src/model.rs, shx-config/src/load.rs, shx-config/src/validate.rs]
+    acceptance:
+      - precedence defaults < global < project < env < flags (tested)
+      - unknown key → warning; invalid value → error naming key path + accepted set
+      - SHX_BACKEND__MODE=cloud overrides nested key
+    status: pending
+    owner: null
+
+  # ── Wave 2 · M0 ──────────────────────────────────────────────────────────
+  - id: T-005
+    title: Mock backend
+    milestone: M0
+    wave: 2
+    role: QA
+    size: S
+    deps: [T-003]
+    deliverables: [shx-llm/src/mock.rs]
+    acceptance:
+      - fault injection Timeout|Unreachable|Auth|ModelMissing|BadOutput|RateLimit → exact BackendError
+      - deterministic (same input → same output)
+    status: pending
+    owner: null
+
+  - id: T-006
+    title: CLI skeleton + output discipline
+    milestone: M0
+    wave: 2
+    role: CLI/UX
+    size: M
+    deps: [T-003, T-004]
+    deliverables: [shx-cli/src/main.rs, shx-cli/src/pipeline.rs, shx-cli/src/render.rs]
+    acceptance:
+      - T-CLI-1 stdout pure; T-CLI-2 warnings on stderr; T-CLI-3 exit codes
+      - --json emits docs/05-CLI-SPEC.md §6 shape
+    status: pending
+    owner: null
+
+  - id: T-007
+    title: doctor skeleton + config init
+    milestone: M0
+    wave: 2
+    role: CLI/UX
+    size: M
+    deps: [T-004, T-005]
+    deliverables: [shx-cli/src/commands/doctor.rs, shx-cli/src/commands/config.rs]
+    acceptance:
+      - doctor --json reports config/DB/backend/effective-config
+      - config init writes a file validate accepts; config path prints precedence order
+    status: pending
+    owner: null
+
+  - id: T-008
+    title: Print-only guard test (T-SAFE-3)
+    milestone: M0
+    wave: 2
+    role: Safety
+    size: S
+    deps: [T-001]
+    deliverables: [tests/invariants/print_only.rs]
+    acceptance:
+      - greps tree for process::Command/Command::new/libc::system/execvp/popen/sh -c
+      - allow-lists doctor probe + config edit with justifying comments
+      - asserts no --run/--exec flag exists
+    notes: Permanent invariant (ADR-002). Never delete.
+    status: pending
+    owner: null
+
+  # ── Wave 3 · M1 + M3 safety core ─────────────────────────────────────────
+  - id: T-101
+    title: Prompt builder v1 + response parser
+    milestone: M1
+    wave: 3
+    role: Core
+    size: M
+    serialize: true
+    deps: [T-003]
+    deliverables: [shx-core/src/prompt.rs, shx-core/src/parse.rs]
+    acceptance:
+      - T-DET-1 byte-identical prompts for fixed inputs
+      - parser covers valid/fenced/prose-wrapped/truncated/wrong-types/extra-keys
+    status: pending
+    owner: null
+
+  - id: T-102
+    title: Ollama backend
+    milestone: M1
+    wave: 3
+    role: Backend
+    size: M
+    deps: [T-003, T-101, T-004]
+    deliverables: [shx-llm/src/ollama.rs, shx-llm/src/http.rs]
+    acceptance:
+      - request-body unit test asserts keep_alive/num_ctx/schema
+      - health() distinguishes reachable+present / reachable+missing (ModelMissing + pull hint) / unreachable
+      - live smoke test #[ignore]d and documented
+    status: pending
+    owner: null
+
+  - id: T-103
+    title: Error normalization + doctor backend checks
+    milestone: M1
+    wave: 3
+    role: Backend
+    size: S
+    deps: [T-102]
+    deliverables: [shx-llm/src/error.rs, shx-cli/src/commands/doctor.rs]
+    acceptance:
+      - table test maps provider conditions → ErrorKind/retryable
+      - doctor exit 4 when local backend unreachable
+    status: pending
+    owner: null
+
+  - id: T-104
+    title: Live test harness (T5)
+    milestone: M1
+    wave: 3
+    role: QA
+    size: S
+    deps: [T-102]
+    deliverables: [tests/live/, tools/eval/fixtures (20 intents)]
+    acceptance:
+      - skipped by default in CI; documented run instructions; prints results table
+    status: pending
+    owner: null
+
+  - id: T-301
+    title: Risk classifier + rule table
+    milestone: M3
+    wave: 3
+    role: Safety
+    size: L
+    deps: [T-003]
+    deliverables: [shx-core/src/risk.rs]
+    acceptance:
+      - rule table is data-driven { id, family, level, matcher }
+      - sub-millisecond on corpora (bench); no panics (property test); stable rule ids
+    status: pending
+    owner: null
+
+  - id: T-302
+    title: Danger + benign corpora tests
+    milestone: M3
+    wave: 3
+    role: Safety
+    size: M
+    deps: [T-301]
+    deliverables: [tests/corpus/risk_danger.txt, tests/corpus/risk_benign.txt]
+    acceptance:
+      - T-SAFE-1 zero false negatives; T-SAFE-2 <10% benign FP
+      - danger corpus ≥ 40 lines spanning every family
+      - meta-test: adding a rule without a corpus line fails
+    status: pending
+    owner: null
+
+  - id: T-303
+    title: Redactor (full pattern set) + corpus
+    milestone: M3
+    wave: 3
+    role: Safety
+    size: M
+    deps: [T-003]
+    deliverables: [shx-core/src/redact.rs, tests/corpus/redaction.txt]
+    acceptance:
+      - T-SAFE-4 every positive masks; every negative (UUID/SHA/long non-secret) passes through
+      - Cow avoids allocation when nothing matches
+    status: pending
+    owner: null
+
+  # ── Wave 4 · M2 Memory ───────────────────────────────────────────────────
+  - id: T-201
+    title: Memory store + migrations v1
+    milestone: M2
+    wave: 4
+    role: Memory
+    size: L
+    serialize: true
+    deps: [T-003]
+    deliverables: [shx-memory/src/store.rs, shx-memory/src/paths.rs, shx-memory/src/migrations/001_init.sql]
+    acceptance:
+      - T-MEM-3 migration from v0 fixture, rows survive
+      - InMemoryStore and SQLite impl pass the same conformance suite
+      - 0600/0700 perms on Unix; prune applies retention_days + 30-day danger rule
+    status: pending
+    owner: null
+
+  - id: T-202
+    title: Write path + redaction-at-write
+    milestone: M2
+    wave: 4
+    role: Memory
+    size: M
+    deps: [T-201, T-303]
+    deliverables: [shx-memory/src/record.rs]
+    acceptance:
+      - T-MEM-1 record a fake key → read back masked
+      - no code path writes a raw secret
+      - record called with from_cache/risk_level/latency_ms populated
+    status: pending
+    owner: null
+
+  - id: T-203
+    title: Context builder v1
+    milestone: M2
+    wave: 4
+    role: Memory
+    size: M
+    deps: [T-201]
+    deliverables: [shx-memory/src/retrieve.rs]
+    acceptance:
+      - T-MEM-2 never exceeds max_tokens, never panics; exact bundle for fixed fixtures
+      - deterministic; redaction ran on every block
+    status: pending
+    owner: null
+
+  - id: T-204
+    title: shx history family
+    milestone: M2
+    wave: 4
+    role: CLI/UX
+    size: M
+    deps: [T-201]
+    deliverables: [shx-cli/src/commands/history.rs]
+    acceptance:
+      - list/show/export/prune/purge with --json/--jsonl and filters
+      - purge requires confirmation unless -y; export --jsonl round-trips
+    status: pending
+    owner: null
+
+  - id: T-205
+    title: shx teach + vocabulary learning
+    milestone: M2
+    wave: 4
+    role: Memory
+    size: M
+    deps: [T-201, T-203]
+    deliverables: [shx-cli/src/commands/teach.rs, shx-memory/src/vocab.rs]
+    acceptance:
+      - taught beats learned on conflict; one-off coincidences don't become vocabulary
+      - decay deterministic with FakeClock; apply only when weight >= 1.5
+    status: pending
+    owner: null
+
+  - id: T-206
+    title: --why explainability
+    milestone: M2
+    wave: 4
+    role: CLI/UX
+    size: S
+    deps: [T-203, T-204]
+    deliverables: [shx-cli/src/render.rs]
+    acceptance:
+      - snapshot test of --why output; never writes to stdout
+    status: pending
+    owner: null
+
+  # ── Wave 5 · M3 Safety UX ────────────────────────────────────────────────
+  - id: T-304
+    title: Risk UX (banners, exit codes, --exit-on-risk)
+    milestone: M3
+    wave: 5
+    role: CLI/UX
+    size: M
+    deps: [T-301, T-303, T-006]
+    deliverables: [shx-cli/src/render.rs, shx-cli/src/pipeline.rs]
+    acceptance:
+      - T-CLI-2 still green; snapshot of a Danger banner; exit-code table extended
+    status: pending
+    owner: null
+
+  - id: T-305
+    title: doctor --redaction-test
+    milestone: M3
+    wave: 5
+    role: CLI/UX
+    size: S
+    deps: [T-303]
+    deliverables: [shx-cli/src/commands/doctor.rs]
+    acceptance:
+      - reports per-pattern pass/fail; exit 1 if any pattern fails
+    status: pending
+    owner: null
+
+  # ── Wave 6 · M4 Cloud + routing ──────────────────────────────────────────
+  - id: T-401
+    title: Anthropic backend
+    milestone: M4
+    wave: 6
+    role: Backend
+    size: M
+    deps: [T-003, T-101, T-004]
+    deliverables: [shx-llm/src/anthropic.rs]
+    acceptance:
+      - request-body test asserts single-tool input_schema
+      - auth failure → ErrorKind::Auth; key read from env var named in config, never the file
+    status: pending
+    owner: null
+
+  - id: T-402
+    title: OpenAI-compatible backend + capability probe
+    milestone: M4
+    wave: 6
+    role: Backend
+    size: M
+    deps: [T-401]
+    deliverables: [shx-llm/src/openai_compat.rs]
+    acceptance:
+      - json_schema ↔ json_object probe cached in meta; downgrade path tested with two mock servers
+      - works against a base_url with no key (LM Studio)
+    status: pending
+    owner: null
+
+  - id: T-403
+    title: BackendRouter (local-first escalation)
+    milestone: M4
+    wave: 6
+    role: Backend
+    size: M
+    serialize: true
+    deps: [T-102, T-401, T-402]
+    deliverables: [shx-llm/src/router.rs]
+    acceptance:
+      - T-ROUTE-1 mock local timeout → exactly one cloud call + one stderr notice
+      - T-ROUTE-2 mode=local → zero cloud calls on any local outcome
+      - confidence thresholds honored; --why routing trace populated
+    status: pending
+    owner: null
+
+  - id: T-404
+    title: Egress redaction + route security tests
+    milestone: M4
+    wave: 6
+    role: Safety
+    size: M
+    deps: [T-303, T-403]
+    deliverables: [shx-llm/src/egress.rs, tests/route_security.rs]
+    acceptance:
+      - T-ROUTE-3 serialized cloud request body contains no known secret
+      - redaction asserted for cloud and local paths (defense in depth)
+    status: pending
+    owner: null
+
+  - id: T-405
+    title: --local / --cloud flags
+    milestone: M4
+    wave: 6
+    role: CLI/UX
+    size: S
+    deps: [T-403]
+    deliverables: [shx-cli/src/main.rs]
+    acceptance:
+      - --cloud unconfigured → usage error (exit 2); never silently falls back to local
+    status: pending
+    owner: null
+
+  # ── Wave 7 · M5 Context awareness & learning ─────────────────────────────
+  - id: T-501
+    title: Project scoping + container detection
+    milestone: M5
+    wave: 7
+    role: Memory
+    size: M
+    deps: [T-201, T-203]
+    deliverables: [shx-memory/src/scope.rs, shx-core/src/env.rs]
+    acceptance:
+      - two repos → distinct project_id and disjoint project-scoped recall
+      - in_container detection works inside/outside a container (mocked FS)
+    status: pending
+    owner: null
+
+  - id: T-502
+    title: Fast-path cache
+    milestone: M5
+    wave: 7
+    role: Memory
+    size: M
+    deps: [T-203, T-301]
+    deliverables: [shx-memory/src/cache.rs]
+    acceptance:
+      - T-MEM-4 same intent, different cwd/project → no hit
+      - cache-hit path < 5 ms (bench); never stores danger results; from_cache surfaced
+    status: pending
+    owner: null
+
+  - id: T-503
+    title: Feedback loop + weights/decay
+    milestone: M5
+    wave: 7
+    role: Memory
+    size: M
+    deps: [T-205]
+    deliverables: [shx-cli/src/commands/feedback.rs, shx-memory/src/vocab.rs]
+    acceptance:
+      - good raises weights (cap 3.0); bad lowers or does not raise
+      - --executed sets executed=1; decay deterministic
+    status: pending
+    owner: null
+
+  - id: T-504
+    title: Snippets
+    milestone: M5
+    wave: 7
+    role: CLI/UX
+    size: M
+    deps: [T-201]
+    deliverables: [shx-cli/src/commands/snippet.rs]
+    acceptance:
+      - CRUD + --copy from show; snippet matching appears in --why
+      - snippets never auto-execute as a bare shx <name> (documented)
+    status: pending
+    owner: null
+
+  - id: T-505
+    title: BM25 relevance upgrade
+    milestone: M5
+    wave: 7
+    role: Memory
+    size: M
+    deps: [T-203, T-504]
+    deliverables: [shx-memory/src/retrieve.rs]
+    acceptance:
+      - golden bundle tests updated and reviewed; eval delta in PR; determinism preserved
+    status: pending
+    owner: null
+
+  - id: T-506
+    title: Eval harness (T6)
+    milestone: M5
+    wave: 7
+    role: QA
+    size: L
+    deps: [T-104, T-505]
+    deliverables: [tools/eval/, .github/workflows/eval.yml]
+    acceptance:
+      - scores translate.json (exact/regex/acceptable, risk-misclassification, latency, cache-hit)
+      - CI job on prompt/backend paths; metrics table used in README
+    status: pending
+    owner: null
+
+  # ── Wave 8 · M6 UX & packaging ───────────────────────────────────────────
+  - id: T-601
+    title: --explain reverse mode
+    milestone: M6
+    wave: 8
+    role: CLI/UX
+    size: S
+    deps: [T-101]
+    deliverables: [shx-cli/src/commands/explain.rs]
+    acceptance:
+      - prose to stderr; stdout empty except with --json
+    status: pending
+    owner: null
+
+  - id: T-602
+    title: -i refine session
+    milestone: M6
+    wave: 8
+    role: CLI/UX
+    size: M
+    deps: [T-201, T-403]
+    deliverables: [shx-cli/src/commands/chat.rs]
+    acceptance:
+      - session groups interactions; final command recorded once; Ctrl-C exits clean
+    status: pending
+    owner: null
+
+  - id: T-603
+    title: -n candidates + --copy
+    milestone: M6
+    wave: 8
+    role: CLI/UX
+    size: S
+    deps: [T-006]
+    deliverables: [shx-cli/src/render.rs]
+    acceptance:
+      - -n 3 prints 3 lines to stdout; --copy works with clipboard feature, absent without it
+    status: pending
+    owner: null
+
+  - id: T-604
+    title: Completions + man page
+    milestone: M6
+    wave: 8
+    role: CLI/UX
+    size: S
+    deps: [T-006]
+    deliverables: [shx-cli/src/commands/completion.rs, man/shx.1]
+    acceptance:
+      - valid output for zsh/bash/fish/powershell; shipped in release archive
+    status: pending
+    owner: null
+
+  - id: T-605
+    title: import-history (opt-in)
+    milestone: M6
+    wave: 8
+    role: CLI/UX
+    size: M
+    deps: [T-202]
+    deliverables: [shx-cli/src/commands/import_history.rs]
+    acceptance:
+      - redacts before insert; summary printed; --dry-run writes nothing
+    status: pending
+    owner: null
+
+  - id: T-606
+    title: Shell wrappers (zsh ZLE + bash readline)
+    milestone: M6
+    wave: 8
+    role: Docs/DevRel
+    size: S
+    deps: [T-304, T-603]
+    deliverables: [contrib/shell/shx.zsh, contrib/shell/shx.bash]
+    acceptance:
+      - ≤30 lines each; respect exit 3/4; never eval; documented install
+    status: pending
+    owner: null
+
+  - id: T-607
+    title: Packaging (cargo-dist)
+    milestone: M6
+    wave: 8
+    role: Release
+    size: M
+    deps: [T-002]
+    deliverables: [dist-workspace.toml, .github/workflows/release.yml]
+    acceptance:
+      - release workflow builds 5 targets; binary size gate met; brew/scoop/winget manifests
+    status: pending
+    owner: null
+
+  - id: T-608
+    title: Docs site + CHANGELOG
+    milestone: M6
+    wave: 8
+    role: Docs/DevRel
+    size: M
+    deps: [T-607]
+    deliverables: [book.toml, docs/, CHANGELOG.md]
+    acceptance:
+      - mdbook build passes; every doc link resolves; CHANGELOG has [Unreleased]
+    status: pending
+    owner: null
+
+  # ── Cross-cutting ────────────────────────────────────────────────────────
+  - id: T-X01
+    title: Doc truthfulness sweep
+    milestone: any
+    wave: any
+    role: Docs/DevRel
+    size: S
+    deps: []
+    deliverables: [docs/]
+    acceptance:
+      - after each wave, docs match behavior; drift → fix tasks opened
+    status: pending
+    owner: null
+
+  - id: T-X02
+    title: Dependency hygiene
+    milestone: any
+    wave: any
+    role: Release
+    size: S
+    deps: []
+    deliverables: [deny.toml, Cargo.lock]
+    acceptance:
+      - cargo-deny/audit on every PR; quarterly dep review
+    status: pending
+    owner: null
+
+  - id: T-X03
+    title: Flake quarantine
+    milestone: any
+    wave: any
+    role: QA
+    size: S
+    deps: []
+    deliverables: [tests/]
+    acceptance:
+      - any flaky test quarantined + issue within a day (docs/08-TESTING.md §9)
+    status: pending
+    owner: null

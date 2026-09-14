@@ -1,0 +1,5 @@
+# Pinned stable. Agents and CI use this file; do not float to latest-stable.
+[toolchain]
+channel = "1.95.0"
+components = ["rustfmt", "clippy"]
+profile = "minimal"

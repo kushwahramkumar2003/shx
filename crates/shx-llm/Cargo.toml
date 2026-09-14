@@ -1,0 +1,15 @@
+# shx-llm: model backends. Depends inward on shx-core only.
+# No tokio / reqwest (ADR-006); HTTP, when added, is sync ureq + rustls.
+[package]
+name = "shx-llm"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+description = "LLM backend trait and provider integrations for shx"
+
+[lints]
+workspace = true
+
+[dependencies]
+shx-core.workspace = true

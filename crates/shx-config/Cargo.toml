@@ -1,0 +1,14 @@
+# shx-config: layered config loader. Depends inward on shx-core only.
+[package]
+name = "shx-config"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+description = "Layered configuration for shx (defaults, TOML, env, flags)"
+
+[lints]
+workspace = true
+
+[dependencies]
+shx-core.workspace = true

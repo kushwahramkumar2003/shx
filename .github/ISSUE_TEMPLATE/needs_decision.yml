@@ -1,0 +1,39 @@
+name: Needs decision
+description: A blocker requiring an interface/architecture/safety decision (used by agents when escalating)
+labels: ["needs-decision"]
+body:
+  - type: input
+    id: task
+    attributes:
+      label: Task id
+      description: The task that is blocked (see docs/agents/TASK-BOARD.md)
+    validations:
+      required: true
+  - type: textarea
+    id: blocker
+    attributes:
+      label: The blocker
+      description: What decision is needed, and why can't the agent resolve it within its role?
+    validations:
+      required: true
+  - type: textarea
+    id: tried
+    attributes:
+      label: What was tried
+      description: Include the approaches explored and why each failed.
+    validations:
+      required: true
+  - type: textarea
+    id: options
+    attributes:
+      label: Options
+      description: List the viable options with trade-offs. Note any that require an ADR or an interface change.
+    validations:
+      required: true
+  - type: textarea
+    id: impact
+    attributes:
+      label: Blast radius
+      description: Which interfaces, tasks, or docs are affected? Which tasks are blocked downstream?
+    validations:
+      required: true

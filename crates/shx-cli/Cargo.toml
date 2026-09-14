@@ -1,0 +1,29 @@
+# shx-cli: the `shx` binary. Depends on core, llm, memory, and config.
+# stdout is the command channel (ADR-001); this crate never executes a command (ADR-002).
+[package]
+name = "shx"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+description = "Print-only natural-language to shell-command translator"
+
+[[bin]]
+name = "shx"
+path = "src/main.rs"
+
+[features]
+default = ["cloud", "clipboard"]
+# Cloud backends (anthropic, openai-compat) land in later tasks.
+cloud = []
+# `--copy` clipboard support lands later (`dep:arboard`).
+clipboard = []
+
+[lints]
+workspace = true
+
+[dependencies]
+shx-core.workspace = true
+shx-llm.workspace = true
+shx-memory.workspace = true
+shx-config.workspace = true

@@ -1,0 +1,25 @@
+# Build
+/target/
+**/*.rs.bk
+*.pdb
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editors
+*.swp
+*~
+.idea/
+
+# Secrets / local env (never commit real keys)
+.env
+.env.*
+!.env.example
+
+# Coverage
+*.profraw
+lcov.info
+
+# Local agent / editor state
+.commandcode/

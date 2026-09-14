@@ -1,0 +1,14 @@
+# shx-memory: persistence and retrieval. Depends inward on shx-core only.
+[package]
+name = "shx-memory"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+description = "SQLite-backed memory store and retrieval for shx"
+
+[lints]
+workspace = true
+
+[dependencies]
+shx-core.workspace = true

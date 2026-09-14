@@ -1,0 +1,51 @@
+name: Bug report
+description: Something behaves incorrectly (not a security issue — see SECURITY notes in docs/04-SAFETY.md §8)
+labels: ["bug", "needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for the report. **Do not** paste real secrets or API keys — redact them.
+        For vulnerabilities, use a private security advisory instead.
+  - type: input
+    id: version
+    attributes:
+      label: shx version
+      description: Output of `shx --version`
+    validations:
+      required: true
+  - type: dropdown
+    id: os
+    attributes:
+      label: OS
+      options: [macOS, Linux, Windows]
+    validations:
+      required: true
+  - type: input
+    id: backend
+    attributes:
+      label: Backend
+      description: local (Ollama) / cloud (which) / --offline
+    validations:
+      required: true
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: Include the exact command, observed output, and expected output.
+    validations:
+      required: true
+  - type: textarea
+    id: doctor
+    attributes:
+      label: `shx doctor --json` output
+      description: This usually answers most environment questions.
+      render: json
+    validations:
+      required: false
+  - type: textarea
+    id: repro
+    attributes:
+      label: Steps to reproduce
+    validations:
+      required: true

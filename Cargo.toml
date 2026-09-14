@@ -1,0 +1,33 @@
+[workspace]
+resolver = "3"
+members = [
+    "crates/shx-core",
+    "crates/shx-llm",
+    "crates/shx-memory",
+    "crates/shx-config",
+    "crates/shx-cli",
+    "xtask",
+]
+
+[workspace.package]
+version = "0.0.0"
+edition = "2024"
+rust-version = "1.95"
+license = "MIT OR Apache-2.0"
+description = "Print-only natural-language to shell-command translator"
+
+[workspace.dependencies]
+# Inward-only graph (ADR-011): core has no shx-* deps; everyone else depends inward.
+# Versions are required so cargo-deny does not treat path deps as wildcards.
+shx-core = { path = "crates/shx-core", version = "0.0.0" }
+shx-llm = { path = "crates/shx-llm", version = "0.0.0" }
+shx-memory = { path = "crates/shx-memory", version = "0.0.0" }
+shx-config = { path = "crates/shx-config", version = "0.0.0" }
+
+[workspace.lints.rust]
+unsafe_code = "forbid"
+
+[profile.release]
+lto = "thin"
+codegen-units = 1
+strip = true
