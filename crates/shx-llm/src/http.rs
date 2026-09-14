@@ -49,12 +49,23 @@ pub trait Transport: Send + Sync {
     /// GET `url`, expecting a JSON/text body.
     fn get(&self, url: &str, timeout: Duration) -> Result<HttpResponse, TransportError>;
 
-    /// POST JSON `body` to `url`.
+    /// POST JSON `body` to `url` with no extra headers.
     fn post_json(
         &self,
         url: &str,
         body: &Value,
         timeout: Duration,
+    ) -> Result<HttpResponse, TransportError> {
+        self.post_json_with_headers(url, body, timeout, &[])
+    }
+
+    /// POST JSON `body` to `url` with extra headers (`x-api-key`, …).
+    fn post_json_with_headers(
+        &self,
+        url: &str,
+        body: &Value,
+        timeout: Duration,
+        headers: &[(&str, &str)],
     ) -> Result<HttpResponse, TransportError>;
 }
 
@@ -68,16 +79,18 @@ impl Transport for UreqTransport {
         read_response(resp)
     }
 
-    fn post_json(
+    fn post_json_with_headers(
         &self,
         url: &str,
         body: &Value,
         timeout: Duration,
+        headers: &[(&str, &str)],
     ) -> Result<HttpResponse, TransportError> {
-        let resp = ureq::post(url)
-            .timeout(timeout)
-            .send_json(body.clone())
-            .map_err(map_ureq)?;
+        let mut req = ureq::post(url).timeout(timeout);
+        for (k, v) in headers {
+            req = req.set(k, v);
+        }
+        let resp = req.send_json(body.clone()).map_err(map_ureq)?;
         read_response(resp)
     }
 }

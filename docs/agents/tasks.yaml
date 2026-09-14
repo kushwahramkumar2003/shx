@@ -412,8 +412,10 @@ tasks:
     acceptance:
       - request-body test asserts single-tool input_schema
       - auth failure → ErrorKind::Auth; key read from env var named in config, never the file
-    status: pending
-    owner: null
+    notes: verify=cargo xtask ci green; request_body_has_single_tool_input_schema, key_from_named_env_never_a_file_value, missing_key_is_auth_and_skips_http, http_401_is_auth, tool_use_response_maps_to_translate_response.
+    status: completed
+    owner: grok-4.6
+    branch: feat/t-401-anthropic
 
   - id: T-402
     title: OpenAI-compatible backend + capability probe

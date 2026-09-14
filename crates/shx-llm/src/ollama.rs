@@ -223,11 +223,12 @@ mod tests {
             self.get.lock().expect("get").clone()
         }
 
-        fn post_json(
+        fn post_json_with_headers(
             &self,
             _url: &str,
             body: &Value,
             _timeout: Duration,
+            _headers: &[(&str, &str)],
         ) -> Result<HttpResponse, TransportError> {
             *self.last_post.lock().expect("last") = Some(body.clone());
             self.post.lock().expect("post").clone()

@@ -11,6 +11,9 @@ While pre-1.0, breaking changes bump the **minor** version and are called out un
 
 ### Added
 
+- Anthropic backend (`POST /v1/messages`, forced single-tool `input_schema`).
+  The API key is read from the env var named in config (`api_key_env`), never
+  from the file. Translate still requires `--offline` until the router (T-403).
 - `shx doctor --redaction-test` runs the secret-redaction corpus and reports
   per-pattern pass/fail (exit 1 if any pattern fails).
 - Risk banners on stderr (yellow REVIEW, red DANGER) with *what* and *why*.
