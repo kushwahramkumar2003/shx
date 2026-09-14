@@ -119,8 +119,10 @@ tasks:
     acceptance:
       - T-CLI-1 stdout pure; T-CLI-2 warnings on stderr; T-CLI-3 exit codes
       - --json emits docs/05-CLI-SPEC.md §6 shape
-    status: pending
-    owner: null
+    notes: verify=cargo xtask ci green; t_cli_1_stdout_pure, t_cli_2_warnings_on_stderr, t_cli_3_exit_codes, json_shape.
+    status: completed
+    owner: grok-4.6
+    branch: feat/t-006-cli-skeleton
 
   - id: T-007
     title: doctor skeleton + config init

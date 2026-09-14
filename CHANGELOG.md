@@ -11,6 +11,9 @@ While pre-1.0, breaking changes bump the **minor** version and are called out un
 
 ### Added
 
+- `shx --offline "<intent>"` prints a fixture command to stdout (mock backend);
+  explanations and warnings go to stderr. `--json` emits the versioned object
+  from the CLI spec.
 - Workspace scaffold: Cargo workspace (`shx-core`, `shx-llm`, `shx-memory`,
   `shx-config`, `shx-cli`), pinned Rust 1.95.0, dual MIT OR Apache-2.0 license,
   and `cargo xtask ci` (the 9-step local gate).

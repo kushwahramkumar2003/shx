@@ -28,6 +28,9 @@ serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 thiserror = "2.0"
 toml = "0.8"
+clap = { version = "4.5", features = ["derive"] }
+anyhow = "1.0"
+assert_cmd = "2.0"
 
 [workspace.lints.rust]
 unsafe_code = "forbid"

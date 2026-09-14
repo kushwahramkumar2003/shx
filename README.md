@@ -49,8 +49,9 @@ correctly the second time without being re-explained.
 
 ## Status
 
-Pre-alpha — M0 foundation. The workspace compiles and `cargo xtask ci` is the
-local gate. Translation, memory, and backends are not implemented yet. See
+Pre-alpha — M0 foundation. `shx --offline "run pg on 7000"` prints a fixture
+command. Real Ollama translations, memory, and cloud backends are not wired
+yet. See
 [docs/09-ROADMAP.md](docs/09-ROADMAP.md) for milestones and
 [docs/agents/TASK-BOARD.md](docs/agents/TASK-BOARD.md) for the work split.
 
@@ -80,7 +81,7 @@ local gate. Translation, memory, and backends are not implemented yet. See
 ```sh
 cargo xtask ci      # fmt + clippy + test + deny + audit + typos + doc + size
 cargo build --release
-cargo run -p shx -- --version
+cargo run -p shx -- --offline "run pg on 7000"
 ```
 
 ## License

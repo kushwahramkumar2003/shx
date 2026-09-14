@@ -27,7 +27,15 @@ name = "print_only"
 path = "../../tests/invariants/print_only.rs"
 
 [dependencies]
+anyhow.workspace = true
+clap.workspace = true
+serde.workspace = true
+serde_json.workspace = true
 shx-core.workspace = true
 shx-llm.workspace = true
 shx-memory.workspace = true
 shx-config.workspace = true
+
+[dev-dependencies]
+assert_cmd.workspace = true
+serde_json.workspace = true
