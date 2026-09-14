@@ -232,8 +232,10 @@ tasks:
     acceptance:
       - rule table is data-driven { id, family, level, matcher }
       - sub-millisecond on corpora (bench); no panics (property test); stable rule ids
-    status: pending
-    owner: null
+    notes: verify=cargo xtask ci green; danger_examples_from_spec, families_cover_table, no_panic_on_arbitrary_input, sub_millisecond_per_command. Not wired into CLI yet (T-304).
+    status: completed
+    owner: grok-4.6
+    branch: feat/t-301-risk-classifier
 
   - id: T-302
     title: Danger + benign corpora tests
