@@ -5,7 +5,7 @@ use std::time::{Duration, Instant};
 use serde_json::{Value, json};
 use shx_core::{TranslateRequest, TranslateResponse, Usage, parse_response};
 
-use crate::backend::{Backend, BackendError, Capabilities, CostTier, ErrorKind, Health};
+use crate::backend::{Backend, BackendError, Capabilities, CostTier, Health};
 use crate::http::{HttpResponse, Transport, TransportError, UreqTransport};
 
 /// Connection settings. Mirrors `[backend.local]` without depending on `shx-config`.
@@ -90,42 +90,8 @@ impl OllamaBackend {
         format!("run: ollama pull {}", self.settings.model)
     }
 
-    fn fail(&self, kind: ErrorKind, detail: impl Into<String>) -> BackendError {
-        BackendError {
-            kind,
-            backend: "ollama",
-            retryable: retryable(kind),
-            detail: detail.into(),
-        }
-    }
-
     fn map_transport(&self, err: TransportError) -> BackendError {
-        match err {
-            TransportError::Unreachable(s) => self.fail(ErrorKind::Unreachable, s),
-            TransportError::Timeout(s) => self.fail(ErrorKind::Timeout, s),
-            TransportError::Status { code, body } => self.map_status(code, &body),
-            TransportError::Other(s) => self.fail(ErrorKind::Server, s),
-        }
-    }
-
-    fn map_status(&self, code: u16, body: &str) -> BackendError {
-        let lower = body.to_ascii_lowercase();
-        let missing = code == 404 || lower.contains("not found") || lower.contains("try pulling");
-        match code {
-            401 | 403 => self.fail(ErrorKind::Auth, body),
-            404 if missing => self.fail(
-                ErrorKind::ModelMissing,
-                format!("{}; {}", body, self.pull_hint()),
-            ),
-            404 => self.fail(ErrorKind::Unreachable, body),
-            429 => self.fail(ErrorKind::RateLimit, body),
-            500..=599 => self.fail(ErrorKind::Server, body),
-            _ if missing => self.fail(
-                ErrorKind::ModelMissing,
-                format!("{}; {}", body, self.pull_hint()),
-            ),
-            _ => self.fail(ErrorKind::Server, format!("HTTP {code}: {body}")),
-        }
+        crate::error::from_transport("ollama", err, Some(&self.pull_hint()))
     }
 
     fn model_listed(&self, tags_body: &str) -> bool {
@@ -142,17 +108,6 @@ impl OllamaBackend {
                 || name == format!("{want}:latest")
                 || name.starts_with(&format!("{want}:"))
         })
-    }
-}
-
-fn retryable(kind: ErrorKind) -> bool {
-    match kind {
-        ErrorKind::Timeout
-        | ErrorKind::Unreachable
-        | ErrorKind::BadOutput
-        | ErrorKind::RateLimit
-        | ErrorKind::Server => true,
-        ErrorKind::Auth | ErrorKind::ModelMissing => false,
     }
 }
 
@@ -206,21 +161,19 @@ impl Backend for OllamaBackend {
             .map_err(|e| self.map_transport(e))?;
         let latency_ms = started.elapsed().as_millis() as u64;
 
-        let envelope: Value = serde_json::from_str(&resp.body)
-            .map_err(|e| self.fail(ErrorKind::BadOutput, format!("ollama envelope: {e}")))?;
+        let envelope: Value = serde_json::from_str(&resp.body).map_err(|e| {
+            crate::error::from_bad_output("ollama", format!("ollama envelope: {e}"))
+        })?;
         let content = envelope
             .get("message")
             .and_then(|m| m.get("content"))
             .and_then(|c| c.as_str())
             .ok_or_else(|| {
-                self.fail(
-                    ErrorKind::BadOutput,
-                    "ollama response missing message.content",
-                )
+                crate::error::from_bad_output("ollama", "ollama response missing message.content")
             })?;
 
-        let parsed =
-            parse_response(content).map_err(|e| self.fail(ErrorKind::BadOutput, e.to_string()))?;
+        let parsed = parse_response(content)
+            .map_err(|e| crate::error::from_bad_output("ollama", e.to_string()))?;
         let confidence = parsed.candidates.first().map(|c| c.confidence);
         let usage = Usage {
             prompt_tokens: envelope
@@ -256,6 +209,8 @@ mod tests {
     use std::sync::Mutex;
 
     use shx_core::{Intent, IntentFlags, NoopRedactor, OutputSchema, PromptBuilder};
+
+    use crate::backend::ErrorKind;
 
     struct Scripted {
         get: Mutex<Result<HttpResponse, TransportError>>,

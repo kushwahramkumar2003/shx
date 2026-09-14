@@ -83,14 +83,7 @@ impl MockBackend {
 
     /// Whether `kind` is treated as retryable / escalation-worthy.
     pub fn retryable(kind: ErrorKind) -> bool {
-        match kind {
-            ErrorKind::Timeout
-            | ErrorKind::Unreachable
-            | ErrorKind::BadOutput
-            | ErrorKind::RateLimit
-            | ErrorKind::Server => true,
-            ErrorKind::Auth | ErrorKind::ModelMissing => false,
-        }
+        crate::error::retryable(kind)
     }
 }
 

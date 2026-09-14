@@ -203,8 +203,10 @@ tasks:
     acceptance:
       - table test maps provider conditions → ErrorKind/retryable
       - doctor exit 4 when local backend unreachable
-    status: pending
-    owner: null
+    notes: verify=cargo xtask ci green; provider_conditions_map_to_kind_and_retryable, doctor_unreachable_exits_4.
+    status: completed
+    owner: grok-4.6
+    branch: feat/t-103-error-doctor
 
   - id: T-104
     title: Live test harness (T5)

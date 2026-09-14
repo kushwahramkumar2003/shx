@@ -1,11 +1,11 @@
-//! `shx doctor` — config, DB path (stub), mock backend, print-only self-report.
+//! `shx doctor` — config, DB path (stub), local backend probe, print-only.
 
 use std::env;
 use std::path::PathBuf;
 
 use serde_json::json;
 use shx_config::{Config, load};
-use shx_llm::{Backend, MockBackend};
+use shx_llm::{Backend, Health, MockBackend, OllamaBackend, OllamaSettings};
 
 use crate::Cli;
 use crate::pipeline::flag_overrides;
@@ -21,8 +21,7 @@ pub fn run(json: bool, redaction_test: bool, cli: &Cli) -> i32 {
 
     let cfg_ref: Option<&Config> = loaded.as_ref().map(|l| &l.config);
     let db = stub_db_path(cfg_ref);
-    let backend = MockBackend::new();
-    let health = backend.health();
+    let (backend_id, health) = probe_backend(cli.offline, cfg_ref);
     let backend_ok = health.reachable && health.model_present && health.auth_configured;
 
     let redaction_ok = true;
@@ -55,7 +54,7 @@ pub fn run(json: bool, redaction_test: bool, cli: &Cli) -> i32 {
                 },
                 "backend": {
                     "ok": backend_ok,
-                    "id": backend.id(),
+                    "id": backend_id,
                     "reachable": health.reachable,
                     "model_present": health.model_present,
                     "auth_configured": health.auth_configured,
@@ -88,12 +87,12 @@ pub fn run(json: bool, redaction_test: bool, cli: &Cli) -> i32 {
         }
         eprintln!("  db_path: {} (stub)", db.display());
         eprintln!(
-            "  backend: {} reachable={} model_present={} auth={}",
-            backend.id(),
-            health.reachable,
-            health.model_present,
-            health.auth_configured
+            "  backend: {backend_id} reachable={} model_present={} auth={}",
+            health.reachable, health.model_present, health.auth_configured
         );
+        if let Some(msg) = &health.message {
+            eprintln!("    {msg}");
+        }
         eprintln!("  print_only: ok (T-SAFE-3)");
         eprintln!(
             "  redaction: {}",
@@ -106,6 +105,28 @@ pub fn run(json: bool, redaction_test: bool, cli: &Cli) -> i32 {
         }
     }
     exit
+}
+
+/// `--offline` uses the mock; otherwise probe Ollama from config (T-103).
+fn probe_backend(offline: bool, cfg: Option<&Config>) -> (&'static str, Health) {
+    if offline {
+        return ("mock", MockBackend::new().health());
+    }
+    let settings = match cfg {
+        Some(c) => OllamaSettings {
+            base_url: c.backend.local.base_url.clone(),
+            model: c.backend.local.model.clone(),
+            keep_alive: c.backend.local.keep_alive.clone(),
+            num_ctx: c.backend.local.num_ctx,
+            timeout_ms: c.backend.local.timeout_ms.min(2_000),
+        },
+        None => OllamaSettings {
+            timeout_ms: 2_000,
+            ..OllamaSettings::default()
+        },
+    };
+    let backend = OllamaBackend::new(settings);
+    (backend.id(), backend.health())
 }
 
 fn stub_db_path(cfg: Option<&Config>) -> PathBuf {

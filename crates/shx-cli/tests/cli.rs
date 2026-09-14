@@ -119,7 +119,10 @@ fn json_shape() {
 
 #[test]
 fn doctor_json_reports_checks() {
-    let assert = shx().args(["doctor", "--json"]).assert().success();
+    let assert = shx()
+        .args(["--offline", "doctor", "--json"])
+        .assert()
+        .success();
     let stdout = String::from_utf8_lossy(&assert.get_output().stdout);
     let v: serde_json::Value = serde_json::from_str(stdout.trim()).expect("json");
     assert_eq!(v["ok"], true);
@@ -134,6 +137,25 @@ fn doctor_json_reports_checks() {
 }
 
 #[test]
+fn doctor_unreachable_exits_4() {
+    let home = unique_home();
+    let cfg = home.join("shx.toml");
+    fs::write(
+        &cfg,
+        r#"
+[backend.local]
+base_url = "http://127.0.0.1:1"
+timeout_ms = 400
+"#,
+    )
+    .unwrap();
+    shx()
+        .args(["--config", cfg.to_str().unwrap(), "doctor", "--json"])
+        .assert()
+        .code(4);
+}
+
+#[test]
 fn config_init_writes_valid_file() {
     let home = unique_home();
     let dest = home.join("shx.toml");
@@ -144,7 +166,13 @@ fn config_init_writes_valid_file() {
     let text = fs::read_to_string(&dest).expect("written");
     assert!(text.contains("mode = \"local-first\""));
     let assert = shx()
-        .args(["--config", dest.to_str().unwrap(), "doctor", "--json"])
+        .args([
+            "--offline",
+            "--config",
+            dest.to_str().unwrap(),
+            "doctor",
+            "--json",
+        ])
         .assert()
         .success();
     let stdout = String::from_utf8_lossy(&assert.get_output().stdout);
