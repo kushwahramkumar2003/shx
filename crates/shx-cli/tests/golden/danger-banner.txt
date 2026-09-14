@@ -1,0 +1,2 @@
+DANGER: rm -rf /
+  why: recursive force-delete targeting /, ~, $HOME, or .

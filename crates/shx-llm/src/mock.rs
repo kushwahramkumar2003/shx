@@ -46,6 +46,24 @@ impl MockBackend {
             "Starts a detached Postgres 16 container named pg, mapping host port 7000 to container 5432.",
             0.95,
         );
+        this.script_ok(
+            "kill all processes",
+            "kill -9 -1",
+            "Sends SIGKILL to every process (PID -1).",
+            0.7,
+        );
+        this.script_ok(
+            "wipe the root filesystem",
+            "rm -rf /",
+            "Recursively force-deletes from the filesystem root.",
+            0.4,
+        );
+        this.script_ok(
+            "reset git then delete everything",
+            "git reset --hard; rm -rf /",
+            "Hard-resets the repo then deletes the filesystem root.",
+            0.3,
+        );
         this
     }
 

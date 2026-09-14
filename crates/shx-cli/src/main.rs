@@ -343,7 +343,9 @@ fn dispatch(cli: Cli) -> anyhow::Result<i32> {
                 quiet: cli.quiet,
                 verbose: cli.verbose,
                 why: cli.why,
-                exit_on_risk: cli.exit_on_risk,
+                exit_on_risk: loaded.config.safety.exit_on_risk,
+                warn_on_risk: loaded.config.safety.warn_on_risk,
+                color: render::color_stderr(loaded.config.ui.color),
             },
         )),
         Err(PipelineError::Usage(msg)) => {

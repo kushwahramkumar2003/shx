@@ -380,8 +380,10 @@ tasks:
     deliverables: [shx-cli/src/render.rs, shx-cli/src/pipeline.rs]
     acceptance:
       - T-CLI-2 still green; snapshot of a Danger banner; exit-code table extended
-    status: pending
-    owner: null
+    notes: verify=cargo xtask ci green; danger_banner_snapshot, t_cli_2_risk_banner_on_stderr, t_cli_3_exit_codes (0/2/3/4/6), refuse_prints_nothing_on_stdout, refuse_multi_command_on_risk_keeps_first.
+    status: completed
+    owner: grok-4.6
+    branch: feat/t-304-risk-ux
 
   - id: T-305
     title: doctor --redaction-test

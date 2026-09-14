@@ -90,7 +90,127 @@ fn t_cli_2_warnings_on_stderr() {
     );
 }
 
-/// T-CLI-3: exit codes 0 / 2 / 4 for the paths T-006 can hit.
+/// T-CLI-2: a Danger banner stays on stderr; stdout is the command only.
+#[test]
+fn t_cli_2_risk_banner_on_stderr() {
+    let assert = shx()
+        .args(["--offline", "--no-memory", "wipe the root filesystem"])
+        .assert()
+        .success();
+    let stdout = String::from_utf8_lossy(&assert.get_output().stdout);
+    let stderr = String::from_utf8_lossy(&assert.get_output().stderr);
+    assert_eq!(stdout, "rm -rf /\n");
+    assert!(
+        !stdout.to_uppercase().contains("DANGER"),
+        "banner must not be on stdout: {stdout:?}"
+    );
+    assert!(
+        stderr.contains("DANGER:") && stderr.contains("why:"),
+        "danger banner belongs on stderr: {stderr:?}"
+    );
+}
+
+#[test]
+fn quiet_keeps_risk_banner() {
+    let assert = shx()
+        .args(["--offline", "--no-memory", "-q", "wipe the root filesystem"])
+        .assert()
+        .success();
+    let stdout = String::from_utf8_lossy(&assert.get_output().stdout);
+    let stderr = String::from_utf8_lossy(&assert.get_output().stderr);
+    assert_eq!(stdout, "rm -rf /\n");
+    assert!(
+        stderr.contains("DANGER:"),
+        "quiet keeps banners: {stderr:?}"
+    );
+    assert!(
+        !stderr.contains("Recursively force-deletes"),
+        "quiet suppresses explanation: {stderr:?}"
+    );
+}
+
+#[test]
+fn refuse_prints_nothing_on_stdout() {
+    let assert = shx()
+        .args([
+            "--offline",
+            "--no-memory",
+            "delete my entire home directory and all backups",
+        ])
+        .assert()
+        .code(6);
+    let stdout = String::from_utf8_lossy(&assert.get_output().stdout);
+    let stderr = String::from_utf8_lossy(&assert.get_output().stderr);
+    assert!(
+        stdout.is_empty(),
+        "refuse must not print a command: {stdout:?}"
+    );
+    assert!(
+        stderr.contains("refused:"),
+        "refuse reason on stderr: {stderr:?}"
+    );
+}
+
+#[test]
+fn refuse_json_exit_reason() {
+    let assert = shx()
+        .args([
+            "--offline",
+            "--no-memory",
+            "--json",
+            "delete my entire home directory and all backups",
+        ])
+        .assert()
+        .code(6);
+    let stdout = String::from_utf8_lossy(&assert.get_output().stdout);
+    let v: serde_json::Value = serde_json::from_str(stdout.trim()).expect("json");
+    assert_eq!(v["exit_reason"], "refused");
+    assert!(v["commands"].as_array().is_some_and(|a| a.is_empty()));
+}
+
+#[test]
+fn exit_on_risk_json_reason() {
+    let assert = shx()
+        .args([
+            "--offline",
+            "--no-memory",
+            "--json",
+            "--exit-on-risk",
+            "kill all processes",
+        ])
+        .assert()
+        .code(3);
+    let stdout = String::from_utf8_lossy(&assert.get_output().stdout);
+    let v: serde_json::Value = serde_json::from_str(stdout.trim()).expect("json");
+    assert_eq!(v["exit_reason"], "risk");
+    assert_eq!(v["risk"]["level"], "review");
+    assert_eq!(v["commands"][0]["command"], "kill -9 -1");
+}
+
+#[test]
+fn refuse_multi_command_on_risk_keeps_first() {
+    let assert = shx()
+        .args([
+            "--offline",
+            "--no-memory",
+            "reset git then delete everything",
+        ])
+        .assert()
+        .success();
+    let stdout = String::from_utf8_lossy(&assert.get_output().stdout);
+    let stderr = String::from_utf8_lossy(&assert.get_output().stderr);
+    assert_eq!(stdout, "git reset --hard\n");
+    assert!(
+        !stdout.contains("rm -rf"),
+        "chained tail must not reach stdout: {stdout:?}"
+    );
+    assert!(
+        stderr.contains("dropped chained commands") && stderr.contains("danger"),
+        "warn about dropped chain: {stderr:?}"
+    );
+}
+
+/// T-CLI-3: exit codes 0 / 2 / 3 / 4 / 6 per docs/05-CLI-SPEC.md §5.
 #[test]
 fn t_cli_3_exit_codes() {
     shx().args(["--offline", "run pg on 7000"]).assert().code(0);
@@ -101,6 +221,23 @@ fn t_cli_3_exit_codes() {
         .code(2);
     shx().args(["--cloud", "run pg on 7000"]).assert().code(2);
     shx().args(["run pg on 7000"]).assert().code(4);
+    shx()
+        .args([
+            "--offline",
+            "--no-memory",
+            "--exit-on-risk",
+            "kill all processes",
+        ])
+        .assert()
+        .code(3);
+    shx()
+        .args([
+            "--offline",
+            "--no-memory",
+            "delete my entire home directory and all backups",
+        ])
+        .assert()
+        .code(6);
 }
 
 #[test]

@@ -11,6 +11,10 @@ While pre-1.0, breaking changes bump the **minor** version and are called out un
 
 ### Added
 
+- Risk banners on stderr (yellow REVIEW, red DANGER) with *what* and *why*.
+  `--exit-on-risk` exits 3 when risk ≥ Review; catastrophic intents are
+  refused (exit 6, no command). Chained commands at Review/Danger keep
+  only the first (`refuse_multi_command_on_risk`).
 - `shx --why` prints a stderr block naming the backend, profile, budget
   truncation, and the memory entries (history, vocabulary, snippets) used.
   Combined with `--json` it still goes to stderr; stdout stays the JSON object.

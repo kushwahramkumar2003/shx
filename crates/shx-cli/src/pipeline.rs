@@ -23,7 +23,7 @@ pub struct TranslateOut {
     pub input: String,
     /// Candidates to print (already truncated to `-n`).
     pub candidates: Vec<Candidate>,
-    /// Classifier result. Always `Safe` until T-301.
+    /// Classifier result for the (possibly truncated) first command.
     pub risk: RiskAssessment,
     /// Backend id that answered.
     pub backend_id: String,
@@ -39,6 +39,8 @@ pub struct TranslateOut {
     pub raw: String,
     /// Data for `--why` (stderr only).
     pub why: WhyInfo,
+    /// Set when the intent is refused (exit 6); no command is printed.
+    pub refused: Option<String>,
 }
 
 /// Explainability payload. Never printed on stdout.
@@ -123,6 +125,25 @@ pub fn run(
     if count == 0 {
         return Err(PipelineError::Usage("--count must be >= 1".into()));
     }
+    if let Some(reason) = refuse_reason(&text) {
+        return Ok(TranslateOut {
+            input: text,
+            candidates: vec![],
+            risk: RiskAssessment {
+                level: RiskLevel::Safe,
+                rules: vec![],
+                notes: vec![],
+            },
+            backend_id: "none".into(),
+            model: String::new(),
+            latency_ms: 0,
+            from_cache: false,
+            warnings,
+            raw: String::new(),
+            why: WhyInfo::default(),
+            refused: Some(reason.to_string()),
+        });
+    }
 
     let intent = Intent {
         text: text.clone(),
@@ -161,7 +182,8 @@ pub fn run(
         ));
     }
 
-    let risk = candidates
+    let mut warnings = warnings;
+    let mut risk = candidates
         .first()
         .map(|c| RiskClassifier.assess(&c.command))
         .unwrap_or(RiskAssessment {
@@ -169,8 +191,24 @@ pub fn run(
             rules: vec![],
             notes: vec![],
         });
-
-    let mut warnings = warnings;
+    if config.safety.refuse_multi_command_on_risk && risk.level >= RiskLevel::Review {
+        for c in &mut candidates {
+            if looks_multi(&c.command) {
+                let kept = first_shell_command(&c.command).to_string();
+                if kept != c.command {
+                    warnings.push(format!(
+                        "dropped chained commands because risk is {}",
+                        risk_word(risk.level)
+                    ));
+                    c.command = kept;
+                }
+            }
+        }
+        risk = candidates
+            .first()
+            .map(|c| RiskClassifier.assess(&c.command))
+            .unwrap_or(risk);
+    }
     if config.memory.enabled && !cli.no_memory {
         let rec = Interaction {
             id: None,
@@ -225,7 +263,60 @@ pub fn run(
         warnings,
         raw: resp.raw,
         why,
+        refused: None,
     })
+}
+
+/// True when the intent is too destructive to translate (exit 6).
+fn refuse_reason(intent: &str) -> Option<&'static str> {
+    let t = intent.to_ascii_lowercase();
+    let destructive = t.contains("delete")
+        || t.contains("wipe")
+        || t.contains("erase")
+        || t.contains("destroy")
+        || t.contains("rm -rf");
+    let home = t.contains("home directory")
+        || t.contains("home dir")
+        || t.contains("entire home")
+        || t.contains("$home");
+    let backups = t.contains("backup");
+    if destructive && home && backups {
+        return Some("refusing to translate a request to destroy the home directory and backups");
+    }
+    if t.contains("fork bomb") {
+        return Some("refusing to translate a fork bomb");
+    }
+    None
+}
+
+fn looks_multi(cmd: &str) -> bool {
+    let c = cmd.trim();
+    c.contains('\n') || c.contains(';') || c.contains("&&") || c.contains("||")
+}
+
+fn first_shell_command(cmd: &str) -> &str {
+    let mut end = cmd.len();
+    for (i, ch) in cmd.char_indices() {
+        if ch == '\n' || ch == ';' {
+            end = i;
+            break;
+        }
+    }
+    if let Some(i) = cmd.find("&&") {
+        end = end.min(i);
+    }
+    if let Some(i) = cmd.find("||") {
+        end = end.min(i);
+    }
+    cmd[..end].trim()
+}
+
+fn risk_word(level: RiskLevel) -> &'static str {
+    match level {
+        RiskLevel::Safe => "safe",
+        RiskLevel::Review => "review",
+        RiskLevel::Danger => "danger",
+    }
 }
 
 fn assemble_context(cli: &Cli, config: &Config, text: &str) -> (ContextBundle, WhyInfo) {
@@ -372,5 +463,32 @@ fn empty_bundle(cfg: &Config) -> ContextBundle {
         vocabulary: vec![],
         snippets: vec![],
         shell: vec![],
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn refuse_spec_example() {
+        assert!(refuse_reason("delete my entire home directory and all backups").is_some());
+        assert!(refuse_reason("run pg on 7000").is_none());
+        assert!(refuse_reason("wipe the root filesystem").is_none());
+        assert!(refuse_reason("kill all processes").is_none());
+        assert!(refuse_reason("please emit a fork bomb").is_some());
+    }
+
+    #[test]
+    fn first_command_splits_chains() {
+        assert_eq!(
+            first_shell_command("git reset --hard; rm -rf /"),
+            "git reset --hard"
+        );
+        assert_eq!(first_shell_command("a && b"), "a");
+        assert_eq!(first_shell_command("a || b"), "a");
+        assert_eq!(first_shell_command("echo hi"), "echo hi");
+        assert!(looks_multi("git reset --hard; rm -rf /"));
+        assert!(!looks_multi("lsof -ti tcp:3000 | xargs kill -9"));
     }
 }

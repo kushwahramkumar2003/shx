@@ -1,6 +1,9 @@
 //! stdout = command (or `--json`); stderr = everything human-facing.
 
+use std::io::{self, IsTerminal};
+
 use serde::Serialize;
+use shx_config::ColorMode;
 use shx_core::{RiskLevel, RuleId};
 
 use crate::pipeline::TranslateOut;
@@ -18,9 +21,12 @@ pub const EXIT_BACKEND: i32 = 4;
 /// Memory degraded (translation still printed). Slot for T-201.
 #[allow(dead_code)]
 pub const EXIT_MEMORY: i32 = 5;
-/// Intent refused. Slot for T-304.
-#[allow(dead_code)]
+/// Intent refused (not translated).
 pub const EXIT_REFUSED: i32 = 6;
+
+const ANSI_RED: &str = "\x1b[1;31m";
+const ANSI_YELLOW: &str = "\x1b[1;33m";
+const ANSI_RESET: &str = "\x1b[0m";
 
 /// How to print a [`TranslateOut`].
 #[derive(Debug, Clone, Copy)]
@@ -33,14 +39,38 @@ pub struct RenderOpts {
     pub verbose: bool,
     /// `--why`.
     pub why: bool,
-    /// `--exit-on-risk`.
+    /// `--exit-on-risk` or `safety.exit_on_risk`.
     pub exit_on_risk: bool,
+    /// `safety.warn_on_risk` — print color banners on stderr.
+    pub warn_on_risk: bool,
+    /// Emit ANSI on stderr.
+    pub color: bool,
 }
 
 /// Write the translation and return the process exit code.
 pub fn render(out: &TranslateOut, opts: RenderOpts) -> i32 {
     for w in &out.warnings {
         eprintln!("warning: {w}");
+    }
+
+    if let Some(reason) = &out.refused {
+        if opts.json {
+            match serde_json::to_string(&json_out(out, opts.exit_on_risk)) {
+                Ok(s) => println!("{s}"),
+                Err(e) => {
+                    eprintln!("shx: failed to serialize --json: {e}");
+                    return EXIT_ERROR;
+                }
+            }
+        }
+        eprintln!("refused: {reason}");
+        return EXIT_REFUSED;
+    }
+
+    if opts.warn_on_risk
+        && let Some(first) = out.candidates.first()
+    {
+        eprint!("{}", format_banner(&out.risk, &first.command, opts.color));
     }
 
     if opts.json {
@@ -74,6 +104,46 @@ pub fn render(out: &TranslateOut, opts: RenderOpts) -> i32 {
     } else {
         EXIT_OK
     }
+}
+
+/// Whether stderr should carry ANSI, honoring `NO_COLOR` and `CLICOLOR_FORCE`.
+pub fn color_stderr(mode: ColorMode) -> bool {
+    if std::env::var_os("NO_COLOR").is_some() {
+        return false;
+    }
+    match mode {
+        ColorMode::Never => false,
+        ColorMode::Always => true,
+        ColorMode::Auto => {
+            std::env::var_os("CLICOLOR_FORCE").is_some() || io::stderr().is_terminal()
+        }
+    }
+}
+
+/// Color-coded risk banner (`what` + `why`). Empty when level is Safe.
+pub fn format_banner(risk: &shx_core::RiskAssessment, command: &str, color: bool) -> String {
+    if risk.level < RiskLevel::Review {
+        return String::new();
+    }
+    let label = match risk.level {
+        RiskLevel::Danger => "DANGER",
+        RiskLevel::Review => "REVIEW",
+        RiskLevel::Safe => unreachable!(),
+    };
+    let painted = if color {
+        let code = match risk.level {
+            RiskLevel::Danger => ANSI_RED,
+            _ => ANSI_YELLOW,
+        };
+        format!("{code}{label}{ANSI_RESET}")
+    } else {
+        label.to_string()
+    };
+    let mut s = format!("{painted}: {command}\n");
+    for note in &risk.notes {
+        s.push_str(&format!("  why: {note}\n"));
+    }
+    s
 }
 
 #[derive(Serialize)]
@@ -118,7 +188,9 @@ struct JsonMemory {
 }
 
 fn json_out<'a>(out: &'a TranslateOut, exit_on_risk: bool) -> JsonOut<'a> {
-    let exit_reason = if exit_on_risk && out.risk.level >= RiskLevel::Review {
+    let exit_reason = if out.refused.is_some() {
+        "refused"
+    } else if exit_on_risk && out.risk.level >= RiskLevel::Review {
         "risk"
     } else {
         "ok"
@@ -246,7 +318,59 @@ mod tests {
                 ports: vec![3000, 5432, 7000],
                 prefer_docker: true,
             },
+            refused: None,
         };
         assert_eq!(format_why(&out), include_str!("../tests/golden/why.txt"));
+    }
+
+    #[test]
+    fn danger_banner_snapshot() {
+        let risk = RiskAssessment {
+            level: RiskLevel::Danger,
+            rules: vec![shx_core::RuleId::new("del.recursive-force")],
+            notes: vec!["recursive force-delete targeting /, ~, $HOME, or .".into()],
+        };
+        assert_eq!(
+            format_banner(&risk, "rm -rf /", false),
+            include_str!("../tests/golden/danger-banner.txt")
+        );
+        let painted = format_banner(&risk, "rm -rf /", true);
+        assert!(
+            painted.contains("\u{1b}[1;31mDANGER\u{1b}[0m"),
+            "danger banner is red: {painted:?}"
+        );
+        assert!(
+            !painted.contains("rm -rf /\u{1b}"),
+            "command itself is not colored: {painted:?}"
+        );
+    }
+
+    #[test]
+    fn review_banner_is_yellow() {
+        let risk = RiskAssessment {
+            level: RiskLevel::Review,
+            rules: vec![shx_core::RuleId::new("proc.kill-minus-one")],
+            notes: vec!["kill -9 -1 / kill -1".into()],
+        };
+        let plain = format_banner(&risk, "kill -9 -1", false);
+        assert!(plain.starts_with("REVIEW: kill -9 -1\n"));
+        assert!(plain.contains("  why: kill -9 -1 / kill -1\n"));
+        let painted = format_banner(&risk, "kill -9 -1", true);
+        assert!(painted.contains("\u{1b}[1;33mREVIEW\u{1b}[0m"));
+    }
+
+    #[test]
+    fn safe_has_no_banner() {
+        let risk = RiskAssessment {
+            level: RiskLevel::Safe,
+            rules: vec![],
+            notes: vec![],
+        };
+        assert_eq!(format_banner(&risk, "echo hi", false), "");
+    }
+
+    #[test]
+    fn color_never_and_no_color_env() {
+        assert!(!color_stderr(ColorMode::Never));
     }
 }
