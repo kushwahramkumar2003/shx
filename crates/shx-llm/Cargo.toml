@@ -13,7 +13,6 @@ workspace = true
 
 [dependencies]
 serde.workspace = true
-shx-core.workspace = true
-
-[dev-dependencies]
 serde_json.workspace = true
+shx-core.workspace = true
+ureq.workspace = true

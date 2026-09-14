@@ -25,6 +25,7 @@ allow = [
     "ISC",
     "Unicode-3.0",
     "Zlib",
+    "CDLA-Permissive-2.0",
 ]
 confidence-threshold = 0.8
 # Unused allowances stay until later crates (ureq, rusqlite, clap) land.

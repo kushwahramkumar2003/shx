@@ -5,7 +5,10 @@
 #![forbid(unsafe_code)]
 
 pub mod backend;
+pub mod http;
 pub mod mock;
+pub mod ollama;
 
 pub use backend::{Backend, BackendError, Capabilities, CostTier, ErrorKind, Health};
 pub use mock::MockBackend;
+pub use ollama::{OllamaBackend, OllamaSettings};

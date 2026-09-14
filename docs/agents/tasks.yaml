@@ -187,8 +187,10 @@ tasks:
       - request-body unit test asserts keep_alive/num_ctx/schema
       - health() distinguishes reachable+present / reachable+missing (ModelMissing + pull hint) / unreachable
       - live smoke test #[ignore]d and documented
-    status: pending
-    owner: null
+    notes: verify=cargo xtask ci green; chat_body_has_keep_alive_num_ctx_schema, health present/missing/unreachable, fixture parse, live_smoke ignored. CLI still --offline only until wired.
+    status: completed
+    owner: grok-4.6
+    branch: feat/t-102-ollama
 
   - id: T-103
     title: Error normalization + doctor backend checks

@@ -11,6 +11,8 @@ While pre-1.0, breaking changes bump the **minor** version and are called out un
 
 ### Added
 
+- Ollama backend (`POST /api/chat`, `GET /api/tags`) via sync ureq+rustls.
+  Not yet selected by the CLI (still `--offline` / mock).
 - `shx doctor --json` reports config parse, a stub DB path, mock backend
   health, and the effective config. `shx config init` writes a commented
   default; `shx config path` prints discovered paths.
