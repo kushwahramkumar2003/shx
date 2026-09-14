@@ -1,4 +1,4 @@
-//! Budgeted recency + relevance context assembly (docs/03-MEMORY.md §4).
+//! Budgeted recency + BM25 relevance context assembly (docs/03-MEMORY.md §4).
 
 use shx_core::{
     ContextBundle, EnvInfo, Interaction, Profile, Redactor, Scope, Snippet, VocabEntry,
@@ -29,11 +29,6 @@ impl Default for ContextBudget {
         }
     }
 }
-
-const STOPWORDS: &[&str] = &[
-    "a", "an", "the", "on", "in", "of", "to", "for", "and", "or", "with", "is", "at", "it", "as",
-    "by", "from", "be", "this", "that", "my", "me",
-];
 
 /// Assembles a [`ContextBundle`] from a store. Deterministic.
 pub struct ContextBuilder<'a> {
@@ -84,10 +79,10 @@ impl<'a> ContextBuilder<'a> {
         budget: ContextBudget,
         project_id: Option<&str>,
     ) -> Result<(ContextBundle, bool, usize)> {
-        let tokens = tokenize(intent);
+        let tokens = crate::bm25::unique_tokens(intent);
         let mut history = self.anchor(store, budget.recent, project_id)?;
         let anchor_ids: Vec<Option<i64>> = history.iter().map(|i| i.id).collect();
-        let extra = self.relevance(store, intent, &tokens, budget.relevance, &anchor_ids)?;
+        let extra = self.relevance(store, &tokens, budget.relevance, &anchor_ids)?;
         history.extend(extra);
         history.sort_by(|a, b| b.ts.cmp(&a.ts).then(b.id.cmp(&a.id)));
         history.dedup_by(|a, b| a.id.is_some() && a.id == b.id);
@@ -130,7 +125,6 @@ impl<'a> ContextBuilder<'a> {
     fn relevance(
         &self,
         store: &dyn MemoryStore,
-        intent: &str,
         tokens: &[String],
         n: u32,
         exclude: &[Option<i64>],
@@ -138,15 +132,14 @@ impl<'a> ContextBuilder<'a> {
         if n == 0 || tokens.is_empty() {
             return Ok(Vec::new());
         }
-        let mut hits = store.search(intent, (n as usize).saturating_mul(4).max(8), Scope::Tool)?;
-        hits.retain(|i| !exclude.contains(&i.id));
-        hits.sort_by(|a, b| {
-            score(b, tokens)
-                .cmp(&score(a, tokens))
-                .then(b.ts.cmp(&a.ts))
-        });
-        hits.truncate(n as usize);
-        Ok(hits)
+        let mut query = tokens.to_vec();
+        for e in store.vocabulary(tokens)? {
+            query.extend(crate::bm25::tokens(&e.expansion));
+        }
+        query.sort();
+        query.dedup();
+        let corpus = store.recent(crate::bm25::CORPUS_LIMIT, Scope::Tool)?;
+        Ok(crate::bm25::top_n(&corpus, &query, exclude, n as usize))
     }
 
     fn vocabulary(&self, store: &dyn MemoryStore, tokens: &[String]) -> Result<Vec<VocabEntry>> {
@@ -167,23 +160,6 @@ impl<'a> ContextBuilder<'a> {
         all.truncate(3);
         Ok(all)
     }
-}
-
-fn tokenize(intent: &str) -> Vec<String> {
-    let mut out: Vec<String> = intent
-        .split(|c: char| !c.is_ascii_alphanumeric())
-        .filter(|t| t.len() > 1)
-        .map(|t| t.to_ascii_lowercase())
-        .filter(|t| !STOPWORDS.contains(&t.as_str()))
-        .collect();
-    out.sort();
-    out.dedup();
-    out
-}
-
-fn score(i: &Interaction, tokens: &[String]) -> u32 {
-    let hay = format!("{} {}", i.input_nl, i.output_cmd).to_ascii_lowercase();
-    tokens.iter().filter(|t| hay.contains(t.as_str())).count() as u32
 }
 
 fn snippet_matches(s: &Snippet, tokens: &[String]) -> bool {

@@ -15,6 +15,9 @@ While pre-1.0, breaking changes bump the **minor** version and are called out un
 
 ### Added
 
+- Context builder step 2 now ranks `Tool` history with BM25 (deterministic,
+  no new deps). Offline ranking-delta tests record the keyword→BM25 lift;
+  T-506 will wire the same fixture into the eval harness.
 - `shx snippet save|list|show|rm` stores named command macros in local
   memory. Matching snippets enter the prompt `ContextBundle` and show up
   in `--why`. `show --copy` prints the command to stdout (clipboard is

@@ -4,6 +4,7 @@
 
 #![forbid(unsafe_code)]
 
+mod bm25;
 pub mod memory;
 pub mod paths;
 pub mod record;

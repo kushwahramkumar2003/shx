@@ -448,6 +448,8 @@ BM25 over the interaction corpus.
 **Acceptance:** golden bundle tests updated and reviewed; improvement measured on
 the eval harness (T6) — PR includes the delta; determinism preserved.
 
+**Status:** in_progress (owner=grok-cli, branch=feat/t-505-bm25).
+
 ### T-506 — Eval harness (T6) · QA · L
 
 **Deps:** T-104, T-505
