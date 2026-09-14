@@ -5,7 +5,7 @@ use std::path::PathBuf;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use rusqlite::Connection;
-use shx_core::{Interaction, PrunePolicy, RiskLevel, Scope, VocabEntry, VocabSource};
+use shx_core::{Interaction, PrunePolicy, RiskLevel, Scope, Snippet, VocabEntry, VocabSource};
 use shx_memory::{InMemoryStore, MemoryStore, SqliteStore, record, vocab};
 
 fn unique_dir() -> PathBuf {
@@ -115,6 +115,44 @@ fn unix_perms_dir_0700_file_0600() {
     let file_mode = fs::metadata(&path).unwrap().permissions().mode() & 0o777;
     assert_eq!(dir_mode, 0o700, "dir {dir_mode:o}");
     assert_eq!(file_mode, 0o600, "file {file_mode:o}");
+}
+
+#[test]
+fn snippet_upsert_get_delete_redacts() {
+    let secret = "sk-TESTFAKE0000000000000000";
+    let sqlite = SqliteStore::open_in_memory().unwrap();
+    let mem = InMemoryStore::default();
+    let raw = Snippet {
+        id: None,
+        name: "pg-up".into(),
+        command: format!("curl -H token={secret} https://api"),
+        description: Some("start postgres".into()),
+        created_ts: 1,
+        use_count: 0,
+    };
+    assert_eq!(sqlite.upsert_snippet(&raw).unwrap(), 1);
+    assert_eq!(mem.upsert_snippet(&raw).unwrap(), 1);
+    for got in [
+        sqlite.get_snippet("pg-up").unwrap().expect("sqlite"),
+        mem.get_snippet("pg-up").unwrap().expect("mem"),
+    ] {
+        assert_eq!(got.name, "pg-up");
+        assert_eq!(got.description.as_deref(), Some("start postgres"));
+        assert!(
+            !record::looks_unredacted_secret(&got.command),
+            "raw secret survived: {}",
+            got.command
+        );
+        assert!(
+            got.command.contains("«redacted:"),
+            "expected redaction marker in {}",
+            got.command
+        );
+    }
+    assert_eq!(sqlite.delete_snippet("pg-up").unwrap(), 1);
+    assert_eq!(mem.delete_snippet("pg-up").unwrap(), 1);
+    assert!(sqlite.get_snippet("pg-up").unwrap().is_none());
+    assert!(mem.get_snippet("pg-up").unwrap().is_none());
 }
 
 #[test]

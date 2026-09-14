@@ -42,14 +42,54 @@ fn now_ms() -> i64 {
 const DAY_MS: i64 = 86_400_000;
 
 impl InMemoryStore {
-    /// Test helper: insert a snippet (not on the frozen trait).
+    /// Insert or replace a snippet by unique name (redacted). Not on the frozen trait.
     pub fn insert_snippet(&self, s: Snippet) -> Result<()> {
+        self.upsert_snippet(&s).map(|_| ())
+    }
+
+    /// Insert or replace a snippet by unique name (redacted). Not on the frozen trait.
+    pub fn upsert_snippet(&self, s: &Snippet) -> Result<i64> {
+        let mut s = crate::record::prepare_snippet(s);
+        if s.name.is_empty() {
+            return Err(MemoryError::Message("snippet name is empty".into()));
+        }
+        if s.command.trim().is_empty() {
+            return Err(MemoryError::Message("snippet command is empty".into()));
+        }
         let mut g = self
             .inner
             .lock()
             .map_err(|e| MemoryError::Message(e.to_string()))?;
+        if let Some(existing) = g.snippets.iter_mut().find(|e| e.name == s.name) {
+            existing.command = s.command;
+            existing.description = s.description;
+            return Ok(existing.id.unwrap_or(0));
+        }
+        let id = g.next_id;
+        g.next_id += 1;
+        s.id = Some(id);
         g.snippets.push(s);
-        Ok(())
+        Ok(id)
+    }
+
+    /// Fetch one snippet by unique name.
+    pub fn get_snippet(&self, name: &str) -> Result<Option<Snippet>> {
+        let g = self
+            .inner
+            .lock()
+            .map_err(|e| MemoryError::Message(e.to_string()))?;
+        Ok(g.snippets.iter().find(|s| s.name == name).cloned())
+    }
+
+    /// Delete a snippet by unique name. Returns rows removed.
+    pub fn delete_snippet(&self, name: &str) -> Result<u64> {
+        let mut g = self
+            .inner
+            .lock()
+            .map_err(|e| MemoryError::Message(e.to_string()))?;
+        let before = g.snippets.len();
+        g.snippets.retain(|s| s.name != name);
+        Ok((before - g.snippets.len()) as u64)
     }
 
     /// Delete vocabulary rows for `term`.

@@ -98,13 +98,25 @@ content and is the one place `-y/--yes` matters as a *tool* confirmation.
 ```
 shx snippet save <name> --command "<cmd>" [-d "<desc>"]
 shx snippet list [--json]
-shx snippet show <name>
+shx snippet show <name> [--copy] [--json]
 shx snippet rm <name>
 ```
 
-Snippets are user-vetted macros. `shx <name>` is **not** auto-resolved to a
-snippet in v1 (surprising behavior); snippets are *context* for the model and
-retrievable explicitly via `shx snippet show <name> --copy`.
+Snippets are user-vetted macros stored in the local memory DB. Matching
+snippets (name or description vs intent tokens, max 3) enter the
+`ContextBundle` and appear under `snippets:` in `--why`.
+
+`shx <name>` is **not** auto-resolved to a snippet in v1 (surprising
+behavior) and is never executed: a bare invocation is always treated as
+natural-language intent. Retrieve the command explicitly with
+`shx snippet show <name> --copy` (command only on stdout, so `| pbcopy`
+works). Clipboard copy of `--copy` lands with the `clipboard` feature
+(T-603); until then `--copy` still prints the command to stdout and does
+not run it.
+
+`save` redacts `command` and `description` before insert. Re-saving the
+same name updates the stored command. `rm` of a missing name is an error
+(exit 1).
 
 ### `shx teach`
 

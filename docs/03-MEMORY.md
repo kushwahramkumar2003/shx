@@ -152,7 +152,9 @@ Algorithm (v1 = "budgeted recency + relevance"):
 4. **Vocabulary:** every `vocabulary` entry whose `term` appears in the intent,
    plus the top 5 by `weight` — the shorthand dictionary.
 5. **Snippets:** user-named macros whose name/description matches the intent
-   tokens (max 3).
+   tokens (max 3). Managed via `shx snippet save|list|show|rm`. They are
+   prompt context only — `shx <name>` is never a snippet lookup or an
+   execution path (see [05-CLI-SPEC.md](05-CLI-SPEC.md) §3).
 6. **Dedupe + order:** interleave newest-first, cap by token budget
    (`context.max_tokens`, default 1500, estimated as `chars/4`).
 7. **Redact:** run the `Redactor` over every assembled block.

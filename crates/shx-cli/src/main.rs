@@ -139,7 +139,7 @@ enum Commands {
         #[command(subcommand)]
         cmd: Option<HistoryCmd>,
     },
-    /// Named command macros (T-504).
+    /// Named command macros (T-504). Never auto-run as `shx <name>`.
     Snippet {
         #[command(subcommand)]
         cmd: Option<SnippetCmd>,
@@ -232,10 +232,35 @@ pub(crate) enum HistoryCmd {
 }
 
 #[derive(Debug, Subcommand)]
-enum SnippetCmd {
-    Save { name: String },
-    List,
-    Show { name: String },
+pub(crate) enum SnippetCmd {
+    /// Store a named command macro (context for the model; never auto-executed).
+    Save {
+        /// Unique snippet name (e.g. pg-up).
+        name: String,
+        /// Command text to store (redacted at write).
+        #[arg(long)]
+        command: String,
+        /// Optional description used when matching intent tokens.
+        #[arg(short = 'd', long)]
+        description: Option<String>,
+    },
+    /// List saved snippets (name + command).
+    List {
+        /// JSON array on stdout.
+        #[arg(long)]
+        json: bool,
+    },
+    /// Show one snippet. `--copy` prints the command only (stdout).
+    Show {
+        name: String,
+        /// Print the command to stdout (clipboard lands in T-603).
+        #[arg(long)]
+        copy: bool,
+        /// JSON object on stdout.
+        #[arg(long)]
+        json: bool,
+    },
+    /// Delete a snippet by name.
     Rm { name: String },
 }
 
@@ -310,6 +335,7 @@ fn dispatch(cli: Cli) -> anyhow::Result<i32> {
             Commands::Config { cmd } => commands::config::run(cmd.as_ref(), &cli),
             Commands::History { .. } => commands::history::run(&cli),
             Commands::Teach { .. } => commands::teach::run(&cli),
+            Commands::Snippet { .. } => commands::snippet::run(&cli),
             other => stub_command(other),
         });
     }
@@ -368,8 +394,8 @@ fn stub_command(cmd: &Commands) -> i32 {
         Commands::Doctor { .. }
         | Commands::Config { .. }
         | Commands::History { .. }
-        | Commands::Teach { .. } => unreachable!("dispatched above"),
-        Commands::Snippet { .. } => "snippet",
+        | Commands::Teach { .. }
+        | Commands::Snippet { .. } => unreachable!("dispatched above"),
         Commands::Feedback { .. } => "feedback",
         Commands::ImportHistory { .. } => "import-history",
         Commands::Completion { .. } => "completion",
