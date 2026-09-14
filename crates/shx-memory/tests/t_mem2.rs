@@ -97,8 +97,13 @@ fn t_mem_2_fixture_deterministic_budget() {
         .build("run pg on 7000", &env(), &profile(), &store, b, Some("p1"))
         .unwrap();
     assert_eq!(a, c);
-    assert!(a.history.len() >= 2);
-    assert_eq!(a.history[0].input_nl, "run pg on 7000"); // newest first
+    assert_eq!(
+        a.history
+            .iter()
+            .map(|i| i.input_nl.as_str())
+            .collect::<Vec<_>>(),
+        ["run pg on 7000", "list files", "cargo test"]
+    );
     assert!(a.vocabulary.iter().any(|v| v.term == "pg"));
     assert!(a.snippets.iter().any(|s| s.name == "pg-up"));
     assert!(memory_tokens(&a) <= b.max_tokens as usize);
@@ -218,4 +223,122 @@ fn t_mem_2_empty_store_ok() {
         .unwrap();
     assert!(bundle.history.is_empty());
     assert!(memory_tokens(&bundle) <= 1500);
+}
+
+/// T-MEM-2 golden: BM25 relevance prefers the rare-term hit over common-term
+/// recency distractors. `recent=2` so the two newest noise rows are the anchor;
+/// the postgres row is older and must come from step 2.
+#[test]
+fn t_mem_2_bm25_relevance_golden() {
+    let store = InMemoryStore::default();
+    store
+        .record_interaction(&ix(1000, "noise newest", "true"))
+        .unwrap();
+    store
+        .record_interaction(&ix(900, "noise second", "true"))
+        .unwrap();
+    store
+        .record_interaction(&ix(800, "noise third", "true"))
+        .unwrap();
+    store
+        .record_interaction(&ix(700, "start postgres locally", "pg_ctl start"))
+        .unwrap();
+    store
+        .record_interaction(&ix(600, "run the tests", "cargo test"))
+        .unwrap();
+    for i in 0..8 {
+        store
+            .record_interaction(&ix(100 + i, &format!("run job {i}"), "true"))
+            .unwrap();
+    }
+
+    let b = ContextBudget {
+        recent: 2,
+        relevance: 1,
+        shell: 0,
+        max_tokens: 1500,
+    };
+    let builder = ContextBuilder::new(&SecretRedactor);
+    let a = builder
+        .build("run postgres", &env(), &profile(), &store, b, Some("p1"))
+        .unwrap();
+    let c = builder
+        .build("run postgres", &env(), &profile(), &store, b, Some("p1"))
+        .unwrap();
+    assert_eq!(a, c);
+    assert_eq!(
+        a.history
+            .iter()
+            .map(|i| i.input_nl.as_str())
+            .collect::<Vec<_>>(),
+        ["noise newest", "noise second", "start postgres locally"]
+    );
+}
+
+/// Vocabulary expansions join the BM25 query so `pg` retrieves `postgres` rows.
+#[test]
+fn t_mem_2_bm25_expands_vocabulary() {
+    let store = InMemoryStore::default();
+    store
+        .record_interaction(&ix(
+            50,
+            "start postgres locally",
+            "brew services start postgresql",
+        ))
+        .unwrap();
+    store
+        .record_interaction(&ix(40, "list files", "ls -la"))
+        .unwrap();
+    store
+        .upsert_vocabulary(&VocabEntry {
+            term: "pg".into(),
+            expansion: "postgres".into(),
+            weight: 2.0,
+            source: VocabSource::Taught,
+            last_used_ts: 1,
+            use_count: 1,
+        })
+        .unwrap();
+    let b = ContextBudget {
+        recent: 0,
+        relevance: 5,
+        shell: 0,
+        max_tokens: 1500,
+    };
+    let bundle = ContextBuilder::new(&SecretRedactor)
+        .build("pg", &env(), &profile(), &store, b, None)
+        .unwrap();
+    assert_eq!(
+        bundle
+            .history
+            .iter()
+            .map(|i| i.input_nl.as_str())
+            .collect::<Vec<_>>(),
+        ["start postgres locally"]
+    );
+}
+
+/// Unrelated history must not fill relevance slots (zero BM25 dropped).
+#[test]
+fn t_mem_2_bm25_drops_zero_scores() {
+    let store = InMemoryStore::default();
+    store
+        .record_interaction(&ix(3, "list files", "ls -la"))
+        .unwrap();
+    store
+        .record_interaction(&ix(2, "cargo test", "cargo test"))
+        .unwrap();
+    store
+        .record_interaction(&ix(1, "git status", "git status"))
+        .unwrap();
+    let b = ContextBudget {
+        recent: 0,
+        relevance: 5,
+        shell: 0,
+        max_tokens: 1500,
+    };
+    let bundle = ContextBuilder::new(&SecretRedactor)
+        .build("zzzznonexistent", &env(), &profile(), &store, b, None)
+        .unwrap();
+    assert!(bundle.history.is_empty());
 }

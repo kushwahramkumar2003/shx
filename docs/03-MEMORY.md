@@ -144,7 +144,7 @@ Algorithm (v1 = "budgeted recency + relevance"):
 
 1. **Anchor:** the last `recent = 10` interactions in `Scope::Project` (falls
    back to global if the project has fewer than 3), newest first.
-2. **Relevance:** keyword/BM25-scored search of `Tool` history for tokens
+2. **Relevance:** BM25-scored search of `Tool` history for tokens
    extracted from the intent (lowercased, stopword-filtered, plus any `vocabulary`
    term found), take top `relevance = 5` not already in the anchor set.
 3. **Shell proximity (only if ingested):** the last `shell = 5` shell entries in

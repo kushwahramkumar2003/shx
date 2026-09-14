@@ -553,8 +553,11 @@ tasks:
     deliverables: [shx-memory/src/retrieve.rs]
     acceptance:
       - golden bundle tests updated and reviewed; eval delta in PR; determinism preserved
-    status: pending
-    owner: null
+    notes: verify=cargo xtask ci green; t505_bm25_beats_keyword_baselines, t_505_bm25_bundle_is_byte_deterministic, t_mem_2_bm25_relevance_golden; offline keyword→BM25 ranking delta in t_bm25.rs (T-506 will formalize eval harness). unblocked=T-506. finished locally after Grok Build 402.
+    status: completed
+    owner: project-builder
+    branch: feat/t-505-bm25
+    pr_url: local-only (no remote)
 
   - id: T-506
     title: Eval harness (T6)
