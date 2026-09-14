@@ -1,0 +1,16 @@
+ENVIRONMENT: os=macos shell=zsh cwd=/Users/dev/proj git_root=/Users/dev/proj in_container=false
+PROFILE: name=default ports=[3000, 5432, 7000] prefer=docker notes=""
+<vocabulary>
+pg=postgres
+k8s=kubernetes
+</vocabulary>
+<snippets>
+pg-up => docker run --name pg -d postgres:16
+</snippets>
+<history>
+run pg on 7000 => docker run --name pg -p 7000:5432 -d postgres:16
+</history>
+<shell>
+docker ps
+</shell>
+INTENT: run pg on 7000

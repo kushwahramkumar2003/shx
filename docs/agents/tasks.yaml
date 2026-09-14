@@ -159,8 +159,10 @@ tasks:
     acceptance:
       - T-DET-1 byte-identical prompts for fixed inputs
       - parser covers valid/fenced/prose-wrapped/truncated/wrong-types/extra-keys
-    status: pending
-    owner: null
+    notes: verify=cargo xtask ci green; t_det_1_byte_identical_golden + parser table tests.
+    status: completed
+    owner: grok-4.6
+    branch: feat/t-101-prompt-parser
 
   - id: T-102
     title: Ollama backend

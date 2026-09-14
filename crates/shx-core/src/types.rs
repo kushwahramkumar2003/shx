@@ -293,7 +293,7 @@ pub struct OutputSchema {
 }
 
 impl OutputSchema {
-    /// Placeholder v1 translate schema. The full contract lands in T-101.
+    /// v1 translate schema (ADR-007). Extra keys are tolerated by the parser.
     pub fn translate_v1() -> Self {
         Self {
             name: "shx_translate".into(),
@@ -301,9 +301,27 @@ impl OutputSchema {
                 "type": "object",
                 "required": ["commands"],
                 "properties": {
-                    "commands": { "type": "array" },
-                    "risk_notes": { "type": "array" },
-                    "assumptions": { "type": "array" }
+                    "commands": {
+                        "type": "array",
+                        "minItems": 1,
+                        "items": {
+                            "type": "object",
+                            "required": ["command"],
+                            "properties": {
+                                "command": { "type": "string" },
+                                "explanation": { "type": "string" },
+                                "confidence": { "type": "number" }
+                            }
+                        }
+                    },
+                    "risk_notes": {
+                        "type": "array",
+                        "items": { "type": "string" }
+                    },
+                    "assumptions": {
+                        "type": "array",
+                        "items": { "type": "string" }
+                    }
                 }
             }),
         }
