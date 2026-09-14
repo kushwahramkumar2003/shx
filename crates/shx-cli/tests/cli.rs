@@ -118,6 +118,73 @@ fn json_shape() {
 }
 
 #[test]
+fn doctor_json_reports_checks() {
+    let assert = shx().args(["doctor", "--json"]).assert().success();
+    let stdout = String::from_utf8_lossy(&assert.get_output().stdout);
+    let v: serde_json::Value = serde_json::from_str(stdout.trim()).expect("json");
+    assert_eq!(v["ok"], true);
+    assert_eq!(v["checks"]["config_parse"]["ok"], true);
+    assert_eq!(v["checks"]["db_path"]["stub"], true);
+    assert!(v["checks"]["db_path"]["path"].as_str().is_some());
+    assert_eq!(v["checks"]["backend"]["ok"], true);
+    assert_eq!(v["checks"]["backend"]["id"], "mock");
+    assert_eq!(v["checks"]["backend"]["reachable"], true);
+    assert!(v["config"].is_object(), "effective config: {v}");
+    assert!(v["config"]["backend"].is_object());
+}
+
+#[test]
+fn config_init_writes_valid_file() {
+    let home = unique_home();
+    let dest = home.join("shx.toml");
+    shx()
+        .args(["--config", dest.to_str().unwrap(), "config", "init"])
+        .assert()
+        .success();
+    let text = fs::read_to_string(&dest).expect("written");
+    assert!(text.contains("mode = \"local-first\""));
+    let assert = shx()
+        .args(["--config", dest.to_str().unwrap(), "doctor", "--json"])
+        .assert()
+        .success();
+    let stdout = String::from_utf8_lossy(&assert.get_output().stdout);
+    let v: serde_json::Value = serde_json::from_str(stdout.trim()).expect("json");
+    assert_eq!(v["checks"]["config_parse"]["ok"], true);
+}
+
+#[test]
+fn config_path_prints_precedence_order() {
+    let home = unique_home();
+    fs::write(home.join(".shx.toml"), "[ui]\ncandidates = 1\n").unwrap();
+    let mut cmd = Command::cargo_bin("shx").expect("shx bin");
+    let assert = cmd
+        .env_clear()
+        .env("HOME", &home)
+        .env("USERPROFILE", &home)
+        .env("APPDATA", &home)
+        .current_dir(&home)
+        .args(["config", "path"])
+        .assert()
+        .success();
+    let stdout = String::from_utf8_lossy(&assert.get_output().stdout);
+    let lines: Vec<&str> = stdout.lines().filter(|l| !l.is_empty()).collect();
+    assert!(
+        lines.iter().any(|l| l.contains("shx.toml")),
+        "global path: {stdout:?}"
+    );
+    assert!(
+        lines.iter().any(|l| l.ends_with(".shx.toml")),
+        "project path: {stdout:?}"
+    );
+    let global_idx = lines.iter().position(|l| l.contains("shx.toml")).unwrap();
+    let project_idx = lines.iter().position(|l| l.ends_with(".shx.toml")).unwrap();
+    assert!(
+        global_idx <= project_idx,
+        "global before project: {lines:?}"
+    );
+}
+
+#[test]
 fn version_on_stdout() {
     let assert = shx().arg("--version").assert().success();
     let stdout = String::from_utf8_lossy(&assert.get_output().stdout);

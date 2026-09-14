@@ -11,6 +11,9 @@ While pre-1.0, breaking changes bump the **minor** version and are called out un
 
 ### Added
 
+- `shx doctor --json` reports config parse, a stub DB path, mock backend
+  health, and the effective config. `shx config init` writes a commented
+  default; `shx config path` prints discovered paths.
 - `shx --offline "<intent>"` prints a fixture command to stdout (mock backend);
   explanations and warnings go to stderr. `--json` emits the versioned object
   from the CLI spec.

@@ -5,6 +5,7 @@
 
 #![forbid(unsafe_code)]
 
+mod commands;
 mod pipeline;
 mod render;
 
@@ -193,13 +194,30 @@ enum SnippetCmd {
 }
 
 #[derive(Debug, Subcommand)]
-enum ConfigCmd {
+pub(crate) enum ConfigCmd {
+    /// Print discovered config paths (lowest precedence first).
     Path,
-    Show,
-    Get { key: String },
-    Set { key: String, value: String },
+    /// Print the effective merged config.
+    Show {
+        /// JSON object on stdout.
+        #[arg(long)]
+        json: bool,
+    },
+    Get {
+        key: String,
+    },
+    Set {
+        key: String,
+        value: String,
+    },
+    /// Open the global config in $EDITOR.
     Edit,
-    Init,
+    /// Write a commented default config.
+    Init {
+        /// Overwrite an existing file.
+        #[arg(long)]
+        force: bool,
+    },
 }
 
 fn main() -> ExitCode {
@@ -238,7 +256,14 @@ fn clap_exit(err: clap::Error) -> ExitCode {
 
 fn dispatch(cli: Cli) -> anyhow::Result<i32> {
     if let Some(cmd) = &cli.command {
-        return Ok(stub_command(cmd));
+        return Ok(match cmd {
+            Commands::Doctor {
+                json,
+                redaction_test,
+            } => commands::doctor::run(*json, *redaction_test, &cli),
+            Commands::Config { cmd } => commands::config::run(cmd.as_ref(), &cli),
+            other => stub_command(other),
+        });
     }
     if cli.explain.is_some() {
         eprintln!("shx --explain: not implemented yet (T-601)");
@@ -290,12 +315,13 @@ fn dispatch(cli: Cli) -> anyhow::Result<i32> {
 
 fn stub_command(cmd: &Commands) -> i32 {
     let name = match cmd {
-        Commands::Doctor { .. } => "doctor",
+        Commands::Doctor { .. } | Commands::Config { .. } => {
+            unreachable!("dispatched above")
+        }
         Commands::History { .. } => "history",
         Commands::Snippet { .. } => "snippet",
         Commands::Teach { .. } => "teach",
         Commands::Feedback { .. } => "feedback",
-        Commands::Config { .. } => "config",
         Commands::ImportHistory { .. } => "import-history",
         Commands::Completion { .. } => "completion",
         Commands::Man => "man",

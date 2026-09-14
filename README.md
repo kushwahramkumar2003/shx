@@ -50,8 +50,8 @@ correctly the second time without being re-explained.
 ## Status
 
 Pre-alpha — M0 foundation. `shx --offline "run pg on 7000"` prints a fixture
-command. Real Ollama translations, memory, and cloud backends are not wired
-yet. See
+command; `shx doctor` and `shx config init` work. Real Ollama translations,
+memory, and cloud backends are not wired yet. See
 [docs/09-ROADMAP.md](docs/09-ROADMAP.md) for milestones and
 [docs/agents/TASK-BOARD.md](docs/agents/TASK-BOARD.md) for the work split.
 

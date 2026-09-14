@@ -160,7 +160,7 @@ pub fn flag_overrides(cli: &Cli) -> FlagOverrides {
             None
         },
         exit_on_risk: cli.exit_on_risk.then_some(true),
-        no_memory: Some(true),
+        no_memory: cli.no_memory.then_some(true),
         candidates: cli.count,
         color: cli.no_color.then_some(shx_config::ColorMode::Never),
         config_path: cli.config.clone(),

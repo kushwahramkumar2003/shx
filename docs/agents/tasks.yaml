@@ -135,8 +135,10 @@ tasks:
     acceptance:
       - doctor --json reports config/DB/backend/effective-config
       - config init writes a file validate accepts; config path prints precedence order
-    status: pending
-    owner: null
+    notes: verify=cargo xtask ci green; doctor_json_reports_checks, config_init_writes_valid_file, config_path_prints_precedence_order, default_template_validates.
+    status: completed
+    owner: grok-4.6
+    branch: feat/t-007-doctor-config
 
   - id: T-008
     title: Print-only guard test (T-SAFE-3)
