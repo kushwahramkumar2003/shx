@@ -22,6 +22,10 @@ clipboard = []
 [lints]
 workspace = true
 
+[[test]]
+name = "print_only"
+path = "../../tests/invariants/print_only.rs"
+
 [dependencies]
 shx-core.workspace = true
 shx-llm.workspace = true

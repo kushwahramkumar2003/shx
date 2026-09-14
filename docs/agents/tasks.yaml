@@ -146,9 +146,10 @@ tasks:
       - greps tree for process::Command/Command::new/libc::system/execvp/popen/sh -c
       - allow-lists doctor probe + config edit with justifying comments
       - asserts no --run/--exec flag exists
-    notes: Permanent invariant (ADR-002). Never delete.
-    status: pending
-    owner: null
+    notes: Permanent invariant (ADR-002). Never delete. verify=cargo xtask ci green; t_safe_3_no_user_derived_spawn + no_run_or_exec_flag + string fixture.
+    status: completed
+    owner: grok-4.6
+    branch: feat/t-008-print-only-guard
 
   # ── Wave 3 · M1 + M3 safety core ─────────────────────────────────────────
   - id: T-101
