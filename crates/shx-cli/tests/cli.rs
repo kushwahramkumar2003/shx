@@ -563,3 +563,98 @@ fn why_never_on_stdout() {
     );
     assert!(stderr.contains("memory: used=false"), "{stderr}");
 }
+
+/// T-504: snippet CRUD, `--copy` from show, matching names in `--why`.
+#[test]
+fn snippet_crud_copy_and_why() {
+    let home = unique_home();
+    let cmd = "docker run --name pg -d postgres:16";
+    shx_in(&home)
+        .args([
+            "snippet",
+            "save",
+            "pg-up",
+            "--command",
+            cmd,
+            "-d",
+            "start postgres",
+        ])
+        .assert()
+        .success();
+
+    let assert = shx_in(&home)
+        .args(["snippet", "list", "--json"])
+        .assert()
+        .success();
+    let stdout = String::from_utf8_lossy(&assert.get_output().stdout);
+    let v: serde_json::Value = serde_json::from_str(stdout.trim()).expect("json");
+    assert_eq!(v[0]["name"], "pg-up");
+    assert_eq!(v[0]["command"], cmd);
+
+    let assert = shx_in(&home)
+        .args(["snippet", "show", "pg-up"])
+        .assert()
+        .success();
+    let stdout = String::from_utf8_lossy(&assert.get_output().stdout);
+    let stderr = String::from_utf8_lossy(&assert.get_output().stderr);
+    assert!(stdout.contains("pg-up") && stdout.contains(cmd), "{stdout}");
+    assert!(stderr.contains("start postgres"), "{stderr}");
+
+    let assert = shx_in(&home)
+        .args(["snippet", "show", "pg-up", "--copy"])
+        .assert()
+        .success();
+    let stdout = String::from_utf8_lossy(&assert.get_output().stdout);
+    let stderr = String::from_utf8_lossy(&assert.get_output().stderr);
+    assert_eq!(stdout, format!("{cmd}\n"));
+    assert!(
+        !stderr.contains(cmd),
+        "--copy must not duplicate the command on stderr: {stderr:?}"
+    );
+
+    let assert = shx_in(&home)
+        .args(["--offline", "--why", "run pg on 7000"])
+        .assert()
+        .success();
+    let stdout = String::from_utf8_lossy(&assert.get_output().stdout);
+    let stderr = String::from_utf8_lossy(&assert.get_output().stderr);
+    assert_eq!(stdout, FIXTURE);
+    assert!(
+        !stdout.contains("snippets:"),
+        "why leaked to stdout: {stdout:?}"
+    );
+    assert!(
+        stderr.contains("snippets:") && stderr.contains("pg-up"),
+        "matching snippet belongs in --why: {stderr}"
+    );
+
+    shx_in(&home)
+        .args(["snippet", "rm", "pg-up"])
+        .assert()
+        .success();
+    shx_in(&home)
+        .args(["snippet", "show", "pg-up"])
+        .assert()
+        .code(1);
+}
+
+/// T-504: `shx <name>` is never a snippet lookup or execution path.
+#[test]
+fn snippet_never_auto_executes_as_bare_name() {
+    let home = unique_home();
+    let snippet_cmd = "echo from-snippet";
+    shx_in(&home)
+        .args(["snippet", "save", "pg-up", "--command", snippet_cmd])
+        .assert()
+        .success();
+    let assert = shx_in(&home)
+        .args(["--offline", "pg-up"])
+        .assert()
+        .success();
+    let stdout = String::from_utf8_lossy(&assert.get_output().stdout);
+    assert_eq!(stdout, "true # mock: pg-up\n");
+    assert!(
+        !stdout.contains("from-snippet"),
+        "bare shx <name> must not print the snippet command: {stdout:?}"
+    );
+}

@@ -89,6 +89,56 @@ impl SqliteStore {
         Ok(n as u64)
     }
 
+    /// Insert or replace a snippet by unique name (redacted). Not on the frozen trait.
+    pub fn upsert_snippet(&self, s: &Snippet) -> Result<i64> {
+        let s = crate::record::prepare_snippet(s);
+        if s.name.is_empty() {
+            return Err(MemoryError::Message("snippet name is empty".into()));
+        }
+        if s.command.trim().is_empty() {
+            return Err(MemoryError::Message("snippet command is empty".into()));
+        }
+        let conn = self.lock()?;
+        conn.execute(
+            "INSERT INTO snippets (name, command, description, created_ts, use_count)
+             VALUES (?1, ?2, ?3, ?4, ?5)
+             ON CONFLICT(name) DO UPDATE SET
+               command = excluded.command,
+               description = excluded.description",
+            params![
+                s.name,
+                s.command,
+                s.description,
+                s.created_ts,
+                s.use_count as i64,
+            ],
+        )?;
+        let id: i64 = conn.query_row(
+            "SELECT id FROM snippets WHERE name = ?1",
+            params![s.name],
+            |r| r.get(0),
+        )?;
+        Ok(id)
+    }
+
+    /// Fetch one snippet by unique name.
+    pub fn get_snippet(&self, name: &str) -> Result<Option<Snippet>> {
+        let conn = self.lock()?;
+        let mut stmt = conn.prepare(
+            "SELECT id, name, command, description, created_ts, use_count
+             FROM snippets WHERE name = ?1",
+        )?;
+        let mut rows = stmt.query_map(params![name], map_snippet)?;
+        Ok(rows.next().transpose()?)
+    }
+
+    /// Delete a snippet by unique name. Returns rows removed.
+    pub fn delete_snippet(&self, name: &str) -> Result<u64> {
+        let conn = self.lock()?;
+        let n = conn.execute("DELETE FROM snippets WHERE name = ?1", params![name])?;
+        Ok(n as u64)
+    }
+
     /// Delete vocabulary rows for `term`.
     pub fn forget_vocabulary(&self, term: &str) -> Result<u64> {
         let conn = self.lock()?;
@@ -189,6 +239,17 @@ fn parse_source(s: String) -> VocabSource {
         "imported" => VocabSource::Imported,
         _ => VocabSource::Learned,
     }
+}
+
+fn map_snippet(row: &Row<'_>) -> rusqlite::Result<Snippet> {
+    Ok(Snippet {
+        id: Some(row.get(0)?),
+        name: row.get(1)?,
+        command: row.get(2)?,
+        description: row.get(3)?,
+        created_ts: row.get(4)?,
+        use_count: row.get::<_, i64>(5)? as u64,
+    })
 }
 
 fn map_interaction(row: &Row<'_>) -> rusqlite::Result<Interaction> {
@@ -404,16 +465,7 @@ impl MemoryStore for SqliteStore {
             "SELECT id, name, command, description, created_ts, use_count FROM snippets",
         )?;
         let rows = stmt
-            .query_map([], |row| {
-                Ok(Snippet {
-                    id: Some(row.get(0)?),
-                    name: row.get(1)?,
-                    command: row.get(2)?,
-                    description: row.get(3)?,
-                    created_ts: row.get(4)?,
-                    use_count: row.get::<_, i64>(5)? as u64,
-                })
-            })?
+            .query_map([], map_snippet)?
             .collect::<rusqlite::Result<Vec<_>>>()?;
         Ok(rows)
     }

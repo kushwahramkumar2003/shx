@@ -3,7 +3,7 @@
 //! Every insert path must run [`prepare_interaction`] / [`prepare_shell_cmd`]
 //! so a raw secret cannot land on disk.
 
-use shx_core::{Interaction, Redactor, SecretRedactor, ShellEntry};
+use shx_core::{Interaction, Redactor, SecretRedactor, ShellEntry, Snippet};
 
 /// Copy `i` with `input_nl`, `output_cmd`, and `explanation` redacted.
 pub fn prepare_interaction(i: &Interaction) -> Interaction {
@@ -24,6 +24,20 @@ pub fn prepare_shell_cmd(cmd: &str) -> String {
 pub fn prepare_shell_entry(e: &ShellEntry) -> ShellEntry {
     let mut out = e.clone();
     out.cmd = prepare_shell_cmd(&e.cmd);
+    out
+}
+
+/// Copy `s` with `command` and `description` redacted. Name is trimmed.
+pub fn prepare_snippet(s: &Snippet) -> Snippet {
+    let r = SecretRedactor;
+    let mut out = s.clone();
+    out.name = s.name.trim().to_string();
+    out.command = r.redact(&s.command).into_owned();
+    out.description = s
+        .description
+        .as_ref()
+        .map(|d| r.redact(d.trim()).into_owned())
+        .filter(|d| !d.is_empty());
     out
 }
 

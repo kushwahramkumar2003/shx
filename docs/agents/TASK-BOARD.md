@@ -436,6 +436,8 @@ columns updated.
 **Acceptance:** snippet CRUD + `--copy` from `show`; snippet matching appears in
 `--why`; snippets never auto-execute as a bare `shx <name>` (documented).
 
+**Status:** completed (local-only). Unblocks **T-505**.
+
 ### T-505 — BM25 relevance upgrade · Memory · M
 
 **Deps:** T-203, T-504

@@ -537,8 +537,11 @@ tasks:
     acceptance:
       - CRUD + --copy from show; snippet matching appears in --why
       - snippets never auto-execute as a bare shx <name> (documented)
-    status: pending
-    owner: null
+    notes: verify=cargo xtask ci green; snippet_crud_copy_and_why, snippet_never_auto_executes_as_bare_name, snippet_upsert_get_delete_redacts. Frozen MemoryStore trait unchanged; save/get/delete are inherent store methods. unblocked=T-505.
+    status: completed
+    owner: grok-cli
+    branch: feat/t-504-snippets
+    pr_url: local-only (no remote)
 
   - id: T-505
     title: BM25 relevance upgrade

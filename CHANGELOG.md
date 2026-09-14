@@ -15,6 +15,11 @@ While pre-1.0, breaking changes bump the **minor** version and are called out un
 
 ### Added
 
+- `shx snippet save|list|show|rm` stores named command macros in local
+  memory. Matching snippets enter the prompt `ContextBundle` and show up
+  in `--why`. `show --copy` prints the command to stdout (clipboard is
+  T-603). `shx <name>` is never auto-resolved to a snippet and is never
+  executed.
 - Egress redaction: every backend request (local and cloud) is run through
   `SecretRedactor` immediately before serialize. T-ROUTE-3 covers a poisoned
   fixture.
