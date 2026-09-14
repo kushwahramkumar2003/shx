@@ -265,8 +265,10 @@ tasks:
     acceptance:
       - T-SAFE-4 every positive masks; every negative (UUID/SHA/long non-secret) passes through
       - Cow avoids allocation when nothing matches
-    status: pending
-    owner: null
+    notes: verify=cargo xtask ci green; t_safe_4_corpus, t_safe_4_cow_borrows_when_clean.
+    status: completed
+    owner: grok-4.6
+    branch: feat/t-303-redactor
 
   # ── Wave 4 · M2 Memory ───────────────────────────────────────────────────
   - id: T-201

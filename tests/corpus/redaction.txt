@@ -1,0 +1,47 @@
+# T-SAFE-4 — raw → expected. Fake values only.
+# Positives (must mask) then negatives (must pass through).
+
+# aws-key
+run with AKIAIOSFODNN7EXAMPLE00 now → run with «redacted:aws-key» now
+
+# openai-style api-key
+curl -d sk-TESTFAKE0000000000000000 https://api → curl -d «redacted:api-key» https://api
+
+# github
+git clone https://ghp_abcdefghijklmnopqrstuvwxyz012345@github.com/x/y → git clone https://«redacted:github-token»@github.com/x/y
+echo gho_abcdefghijklmnopqrstuvwxyz012345 → echo «redacted:github-token»
+echo github_pat_11AAAAAAA_abcdefghijklmnopqrstuv → echo «redacted:github-token»
+
+# google
+echo AIzaSyDummyDummyDummyDummyDummyDummyDummy12 → echo «redacted:google-key»
+
+# slack
+notify xoxb-1234-5678-abcdefghijklmnopqrstuv → notify «redacted:slack-token»
+
+# auth header
+curl -H "Authorization: Bearer abcdefghijklmnop" → curl -H "«redacted:auth»"
+
+# env assignment (name kept? we mask the whole NAME=value as env)
+AWS_SECRET_ACCESS_KEY=wJalrXUtnFEMI/K7MDENG → «redacted:env»
+export GITHUB_TOKEN=gho_notthisone → export «redacted:env»
+DB_PASSWORD=hunter2 → «redacted:env»
+API_KEY=plain → «redacted:env»
+
+# connection string
+postgres://alice:s3cret@localhost:5432/app → postgres://«redacted:connection»@localhost:5432/app
+mysql://root:root@127.0.0.1/db → mysql://«redacted:connection»@127.0.0.1/db
+
+# private key (single line)
+-----BEGIN RSA PRIVATE KEY----- MIIEowIBAAK -----END RSA PRIVATE KEY----- → «redacted:private-key»
+
+# jwt (well-known example header/payload/sig, not a live secret)
+eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.dozjgNryP4J3jVmNHl0w5N_XgL0n3I9PlFUP0THsR8U → «redacted:jwt»
+
+# --- negatives: pass through ---
+id=550e8400-e29b-41d4-a716-446655440000 → id=550e8400-e29b-41d4-a716-446655440000
+sha=abcdef0123456789abcdef0123456789abcdef01 → sha=abcdef0123456789abcdef0123456789abcdef01
+note=this-is-a-very-long-but-not-a-secret-string-for-context → note=this-is-a-very-long-but-not-a-secret-string-for-context
+url=https://example.com/path?q=1 → url=https://example.com/path?q=1
+short=sk-short → short=sk-short
+POSTGRES_HOST=localhost → POSTGRES_HOST=localhost
+echo ghp_short → echo ghp_short

@@ -13,6 +13,6 @@ pub mod types;
 
 pub use parse::{ParseError, ParseErrorKind, ParsedOutput, parse_response};
 pub use prompt::{PROMPT_VERSION, PromptBuilder};
-pub use redact::{NoopRedactor, Redacted, Redactor};
+pub use redact::{NoopRedactor, Redacted, Redactor, SecretRedactor};
 pub use risk::{RULES, RiskClassifier, Rule};
 pub use types::*;
