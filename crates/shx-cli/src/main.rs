@@ -115,6 +115,27 @@ enum Commands {
     },
     /// Browse recorded translations (T-204).
     History {
+        /// Max rows (list/export).
+        #[arg(long, default_value_t = 20)]
+        limit: usize,
+        /// Restrict to the current project_id view.
+        #[arg(long)]
+        project: bool,
+        /// All projects (default).
+        #[arg(long)]
+        global: bool,
+        /// Filter by risk level: safe|review|danger.
+        #[arg(long)]
+        risk: Option<String>,
+        /// Substring match on input or command.
+        #[arg(long)]
+        grep: Option<String>,
+        /// JSON array on stdout.
+        #[arg(long)]
+        json: bool,
+        /// JSON lines on stdout.
+        #[arg(long)]
+        jsonl: bool,
         #[command(subcommand)]
         cmd: Option<HistoryCmd>,
     },
@@ -177,12 +198,37 @@ enum Commands {
 }
 
 #[derive(Debug, Subcommand)]
-enum HistoryCmd {
+pub(crate) enum HistoryCmd {
+    /// Newest-first list (default if no subcommand).
     List,
-    Show { id: i64 },
-    Export,
-    Prune,
-    Purge,
+    /// Show one interaction.
+    Show {
+        id: i64,
+        #[arg(long)]
+        json: bool,
+    },
+    /// Dump history.
+    Export {
+        #[arg(long)]
+        json: bool,
+        #[arg(long)]
+        jsonl: bool,
+        #[arg(long)]
+        out: Option<String>,
+    },
+    /// Apply retention.
+    Prune {
+        /// e.g. 180d (days).
+        #[arg(long)]
+        older_than: Option<String>,
+        #[arg(long)]
+        keep_danger: bool,
+    },
+    /// Delete stored interactions.
+    Purge {
+        #[arg(long)]
+        all: bool,
+    },
 }
 
 #[derive(Debug, Subcommand)]
@@ -262,6 +308,7 @@ fn dispatch(cli: Cli) -> anyhow::Result<i32> {
                 redaction_test,
             } => commands::doctor::run(*json, *redaction_test, &cli),
             Commands::Config { cmd } => commands::config::run(cmd.as_ref(), &cli),
+            Commands::History { .. } => commands::history::run(&cli),
             other => stub_command(other),
         });
     }
@@ -315,10 +362,9 @@ fn dispatch(cli: Cli) -> anyhow::Result<i32> {
 
 fn stub_command(cmd: &Commands) -> i32 {
     let name = match cmd {
-        Commands::Doctor { .. } | Commands::Config { .. } => {
+        Commands::Doctor { .. } | Commands::Config { .. } | Commands::History { .. } => {
             unreachable!("dispatched above")
         }
-        Commands::History { .. } => "history",
         Commands::Snippet { .. } => "snippet",
         Commands::Teach { .. } => "teach",
         Commands::Feedback { .. } => "feedback",

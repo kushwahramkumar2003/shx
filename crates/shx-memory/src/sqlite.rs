@@ -72,6 +72,22 @@ impl SqliteStore {
         )?;
         Ok(conn.last_insert_rowid())
     }
+
+    /// Fetch one interaction by id.
+    pub fn get(&self, id: i64) -> Result<Option<Interaction>> {
+        let conn = self.lock()?;
+        let sql = select_sql(&Scope::Tool, "WHERE id = ?1", 2);
+        let mut stmt = conn.prepare(&sql)?;
+        let mut rows = stmt.query_map(params![id, 1i64], map_interaction)?;
+        Ok(rows.next().transpose()?)
+    }
+
+    /// Delete all interactions (and cascading feedback). `purge --all`.
+    pub fn purge_all(&self) -> Result<u64> {
+        let conn = self.lock()?;
+        let n = conn.execute("DELETE FROM interactions", [])?;
+        Ok(n as u64)
+    }
 }
 
 fn configure(conn: &Connection) -> Result<()> {

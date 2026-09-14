@@ -200,13 +200,17 @@ pub fn run(
 }
 
 fn persist_translation(config: &Config, rec: &Interaction) -> shx_memory::Result<i64> {
+    open_store(config)?.record_interaction(rec)
+}
+
+/// Open the configured SQLite memory file.
+pub(crate) fn open_store(config: &Config) -> shx_memory::Result<SqliteStore> {
     let path = if config.memory.path.is_empty() {
         paths::default_db_path()
     } else {
         PathBuf::from(&config.memory.path)
     };
-    let store = SqliteStore::open(&path)?;
-    store.record_interaction(rec)
+    SqliteStore::open(&path)
 }
 
 /// CLI flags that overlay config.

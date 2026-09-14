@@ -26,7 +26,19 @@ fn shx() -> Command {
         .env("HOME", &home)
         .env("USERPROFILE", &home)
         .env("APPDATA", &home)
+        .env("LOCALAPPDATA", &home)
         .current_dir(&home);
+    cmd
+}
+
+fn shx_in(home: &std::path::Path) -> Command {
+    let mut cmd = Command::cargo_bin("shx").expect("shx bin");
+    cmd.env_clear()
+        .env("HOME", home)
+        .env("USERPROFILE", home)
+        .env("APPDATA", home)
+        .env("LOCALAPPDATA", home)
+        .current_dir(home);
     cmd
 }
 
@@ -218,4 +230,85 @@ fn version_on_stdout() {
     let stdout = String::from_utf8_lossy(&assert.get_output().stdout);
     assert!(stdout.contains("shx"), "{stdout:?}");
     assert!(stdout.contains("0.0.0"), "{stdout:?}");
+}
+
+#[test]
+fn history_list_show_export_jsonl_roundtrip_purge() {
+    let home = unique_home();
+    shx_in(&home)
+        .args(["--offline", "run pg on 7000"])
+        .assert()
+        .success();
+    shx_in(&home)
+        .args(["--offline", "list files"])
+        .assert()
+        .success();
+
+    let assert = shx_in(&home).args(["history", "--json"]).assert().success();
+    let stdout = String::from_utf8_lossy(&assert.get_output().stdout);
+    let v: serde_json::Value = serde_json::from_str(stdout.trim()).expect("json array");
+    let arr = v.as_array().expect("array");
+    assert!(arr.len() >= 2, "{stdout}");
+    let id = arr[0]["id"].as_i64().expect("id");
+    assert!(arr.iter().all(|r| r.get("from_cache").is_some()));
+    assert!(arr.iter().all(|r| r.get("risk_level").is_some()));
+    assert!(arr.iter().all(|r| r.get("latency_ms").is_some()));
+
+    shx_in(&home)
+        .args(["history", "show", &id.to_string(), "--json"])
+        .assert()
+        .success();
+
+    let out = home.join("export.jsonl");
+    shx_in(&home)
+        .args([
+            "history",
+            "export",
+            "--jsonl",
+            "--out",
+            out.to_str().unwrap(),
+        ])
+        .assert()
+        .success();
+    let jsonl = fs::read_to_string(&out).expect("jsonl");
+    let mut n = 0;
+    for line in jsonl.lines().filter(|l| !l.is_empty()) {
+        let row: serde_json::Value = serde_json::from_str(line).expect(line);
+        assert!(row.get("input_nl").is_some());
+        n += 1;
+    }
+    assert!(n >= 2, "jsonl rows {n}");
+
+    shx_in(&home)
+        .args(["history", "purge", "--all"])
+        .assert()
+        .code(2);
+    shx_in(&home)
+        .args(["-y", "history", "purge", "--all"])
+        .assert()
+        .success();
+    let assert = shx_in(&home).args(["history", "--json"]).assert().success();
+    let stdout = String::from_utf8_lossy(&assert.get_output().stdout);
+    let v: serde_json::Value = serde_json::from_str(stdout.trim()).expect("json");
+    assert_eq!(v.as_array().map(Vec::len).unwrap_or(99), 0);
+}
+
+#[test]
+fn history_grep_and_prune() {
+    let home = unique_home();
+    shx_in(&home)
+        .args(["--offline", "run pg on 7000"])
+        .assert()
+        .success();
+    let assert = shx_in(&home)
+        .args(["history", "--grep", "pg", "--json"])
+        .assert()
+        .success();
+    let stdout = String::from_utf8_lossy(&assert.get_output().stdout);
+    let v: serde_json::Value = serde_json::from_str(stdout.trim()).expect("json");
+    assert!(!v.as_array().unwrap().is_empty(), "{stdout}");
+    shx_in(&home)
+        .args(["history", "prune", "--older-than", "1d"])
+        .assert()
+        .success();
 }

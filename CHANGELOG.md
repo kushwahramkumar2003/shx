@@ -11,6 +11,8 @@ While pre-1.0, breaking changes bump the **minor** version and are called out un
 
 ### Added
 
+- `shx history` lists, shows, exports (`--json`/`--jsonl`), prunes, and
+  purges stored translations (`-y --all` required to purge).
 - Successful translations are stored locally (redacted). `--no-memory` skips
   the write. Memory failures warn on stderr and still print the command.
 - `shx doctor` probes the configured Ollama endpoint (`GET /api/tags`) and

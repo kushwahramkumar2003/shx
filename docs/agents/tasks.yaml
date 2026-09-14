@@ -331,8 +331,10 @@ tasks:
     acceptance:
       - list/show/export/prune/purge with --json/--jsonl and filters
       - purge requires confirmation unless -y; export --jsonl round-trips
-    status: pending
-    owner: null
+    notes: verify=cargo xtask ci green; history_list_show_export_jsonl_roundtrip_purge, history_grep_and_prune.
+    status: completed
+    owner: grok-4.6
+    branch: feat/t-204-history
 
   - id: T-205
     title: shx teach + vocabulary learning
