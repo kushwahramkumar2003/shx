@@ -64,12 +64,9 @@ pub fn render(out: &TranslateOut, opts: RenderOpts) -> i32 {
         if opts.verbose && !out.raw.is_empty() {
             eprintln!("raw: {}", out.raw);
         }
-        if opts.why {
-            eprintln!(
-                "why: backend={} model={} memory=off from_cache={}",
-                out.backend_id, out.model, out.from_cache
-            );
-        }
+    }
+    if opts.why {
+        eprint!("{}", format_why(out));
     }
 
     if opts.exit_on_risk && out.risk.level >= RiskLevel::Review {
@@ -149,12 +146,107 @@ fn json_out<'a>(out: &'a TranslateOut, exit_on_risk: bool) -> JsonOut<'a> {
             escalated_from: None,
         },
         memory: JsonMemory {
-            used: false,
-            entries: 0,
+            used: out.why.memory_used,
+            entries: out.why.history.len() as u32,
             project_id: None,
             from_cache: out.from_cache,
         },
         latency_ms: out.latency_ms,
         exit_reason,
+    }
+}
+
+/// `--why` block. Always stderr; never stdout.
+pub fn format_why(out: &TranslateOut) -> String {
+    let w = &out.why;
+    let ports = w
+        .ports
+        .iter()
+        .map(|p| p.to_string())
+        .collect::<Vec<_>>()
+        .join(", ");
+    let prefer = if w.prefer_docker { "docker" } else { "host" };
+    let mut s = String::new();
+    s.push_str("why:\n");
+    s.push_str(&format!(
+        "  backend: {}  model: {}  from_cache: {}\n",
+        out.backend_id, out.model, out.from_cache
+    ));
+    s.push_str("  routing: local-first (placeholder; T-403)\n");
+    s.push_str(&format!(
+        "  profile: name={} ports=[{ports}] prefer={prefer}\n",
+        w.profile_name
+    ));
+    s.push_str(&format!(
+        "  memory: used={} entries={} truncated={} tokens={}/{}\n",
+        w.memory_used,
+        w.history.len(),
+        w.truncated,
+        w.tokens,
+        w.max_tokens
+    ));
+    if !w.history.is_empty() {
+        s.push_str("  history:\n");
+        for (id, input, cmd) in &w.history {
+            let id = id.unwrap_or(0);
+            s.push_str(&format!("    - #{id} {input} => {cmd}\n"));
+        }
+    }
+    if !w.vocabulary.is_empty() {
+        s.push_str("  vocabulary:\n");
+        for (term, exp) in &w.vocabulary {
+            s.push_str(&format!("    - {term} = {exp}\n"));
+        }
+    }
+    if !w.snippets.is_empty() {
+        s.push_str("  snippets:\n");
+        for name in &w.snippets {
+            s.push_str(&format!("    - {name}\n"));
+        }
+    }
+    s
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use shx_core::{Candidate, RiskAssessment, RiskLevel};
+
+    use crate::pipeline::{TranslateOut, WhyInfo};
+
+    #[test]
+    fn why_snapshot() {
+        let out = TranslateOut {
+            input: "run pg on 7000".into(),
+            candidates: vec![Candidate {
+                command: "docker run pg".into(),
+                explanation: "start postgres".into(),
+                confidence: 0.9,
+            }],
+            risk: RiskAssessment {
+                level: RiskLevel::Safe,
+                rules: vec![],
+                notes: vec![],
+            },
+            backend_id: "mock".into(),
+            model: "fixture".into(),
+            latency_ms: 0,
+            from_cache: false,
+            warnings: vec![],
+            raw: String::new(),
+            why: WhyInfo {
+                memory_used: true,
+                truncated: false,
+                tokens: 12,
+                max_tokens: 1500,
+                history: vec![(Some(1), "run pg on 7000".into(), "docker run pg".into())],
+                vocabulary: vec![("pg".into(), "postgres".into())],
+                snippets: vec!["pg-up".into()],
+                profile_name: "default".into(),
+                ports: vec![3000, 5432, 7000],
+                prefer_docker: true,
+            },
+        };
+        assert_eq!(format_why(&out), include_str!("../tests/golden/why.txt"));
     }
 }

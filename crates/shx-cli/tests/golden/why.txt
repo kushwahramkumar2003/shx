@@ -1,0 +1,11 @@
+why:
+  backend: mock  model: fixture  from_cache: false
+  routing: local-first (placeholder; T-403)
+  profile: name=default ports=[3000, 5432, 7000] prefer=docker
+  memory: used=true entries=1 truncated=false tokens=12/1500
+  history:
+    - #1 run pg on 7000 => docker run pg
+  vocabulary:
+    - pg = postgres
+  snippets:
+    - pg-up

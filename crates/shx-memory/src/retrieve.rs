@@ -1,7 +1,7 @@
 //! Budgeted recency + relevance context assembly (docs/03-MEMORY.md §4).
 
 use shx_core::{
-    ContextBundle, EnvInfo, Interaction, Profile, Redactor, Scope, ShellEntry, Snippet, VocabEntry,
+    ContextBundle, EnvInfo, Interaction, Profile, Redactor, Scope, Snippet, VocabEntry,
 };
 
 use crate::store::{MemoryStore, Result};
@@ -56,6 +56,34 @@ impl<'a> ContextBuilder<'a> {
         budget: ContextBudget,
         project_id: Option<&str>,
     ) -> Result<ContextBundle> {
+        Ok(self
+            .assemble(intent, env, profile, store, budget, project_id)?
+            .0)
+    }
+
+    /// Like [`ContextBuilder::build`], plus whether the budget trimmed anything
+    /// and the token count.
+    pub fn build_with_stats(
+        &self,
+        intent: &str,
+        env: &EnvInfo,
+        profile: &Profile,
+        store: &dyn MemoryStore,
+        budget: ContextBudget,
+        project_id: Option<&str>,
+    ) -> Result<(ContextBundle, bool, usize)> {
+        self.assemble(intent, env, profile, store, budget, project_id)
+    }
+
+    fn assemble(
+        &self,
+        intent: &str,
+        env: &EnvInfo,
+        profile: &Profile,
+        store: &dyn MemoryStore,
+        budget: ContextBudget,
+        project_id: Option<&str>,
+    ) -> Result<(ContextBundle, bool, usize)> {
         let tokens = tokenize(intent);
         let mut history = self.anchor(store, budget.recent, project_id)?;
         let anchor_ids: Vec<Option<i64>> = history.iter().map(|i| i.id).collect();
@@ -63,22 +91,21 @@ impl<'a> ContextBuilder<'a> {
         history.extend(extra);
         history.sort_by(|a, b| b.ts.cmp(&a.ts).then(b.id.cmp(&a.id)));
         history.dedup_by(|a, b| a.id.is_some() && a.id == b.id);
-
         let vocabulary = self.vocabulary(store, &tokens)?;
         let snippets = self.snippets(store, &tokens)?;
-        let shell: Vec<ShellEntry> = Vec::new();
-
         let mut bundle = ContextBundle {
             env: env.clone(),
             profile: profile.clone(),
             history,
             vocabulary,
             snippets,
-            shell,
+            shell: Vec::new(),
         };
-        cap_budget(&mut bundle, budget.max_tokens);
+        let pre = memory_tokens(&bundle);
+        let dropped = cap_budget(&mut bundle, budget.max_tokens);
         redact_bundle(&mut bundle, self.redactor);
-        Ok(bundle)
+        let tokens = memory_tokens(&bundle);
+        Ok((bundle, dropped || pre > budget.max_tokens as usize, tokens))
     }
 
     fn anchor(
@@ -195,8 +222,9 @@ pub fn memory_tokens(bundle: &ContextBundle) -> usize {
     n
 }
 
-fn cap_budget(bundle: &mut ContextBundle, max_tokens: u32) {
+fn cap_budget(bundle: &mut ContextBundle, max_tokens: u32) -> bool {
     let max = max_tokens as usize;
+    let before = memory_tokens(bundle);
     while memory_tokens(bundle) > max && !bundle.history.is_empty() {
         bundle.history.pop();
     }
@@ -209,6 +237,7 @@ fn cap_budget(bundle: &mut ContextBundle, max_tokens: u32) {
     while memory_tokens(bundle) > max && !bundle.shell.is_empty() {
         bundle.shell.pop();
     }
+    before > max
 }
 
 fn redact_bundle(bundle: &mut ContextBundle, r: &dyn Redactor) {

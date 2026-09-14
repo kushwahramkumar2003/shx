@@ -106,7 +106,7 @@ fn t_cli_3_exit_codes() {
 #[test]
 fn json_shape() {
     let assert = shx()
-        .args(["--offline", "--json", "run pg on 7000"])
+        .args(["--offline", "--no-memory", "--json", "run pg on 7000"])
         .assert()
         .success();
     let stdout = String::from_utf8_lossy(&assert.get_output().stdout);
@@ -340,4 +340,20 @@ fn teach_list_forget() {
     let stdout = String::from_utf8_lossy(&assert.get_output().stdout);
     let v: serde_json::Value = serde_json::from_str(stdout.trim()).expect("json");
     assert_eq!(v.as_array().map(Vec::len).unwrap_or(1), 0);
+}
+
+#[test]
+fn why_never_on_stdout() {
+    let assert = shx()
+        .args(["--offline", "--no-memory", "--why", "run pg on 7000"])
+        .assert()
+        .success();
+    let stdout = String::from_utf8_lossy(&assert.get_output().stdout);
+    let stderr = String::from_utf8_lossy(&assert.get_output().stderr);
+    assert_eq!(stdout, FIXTURE);
+    assert!(!stdout.contains("why:"), "why leaked to stdout: {stdout:?}");
+    assert!(stderr.contains("why:"), "{stderr}");
+    assert!(stderr.contains("placeholder; T-403"), "{stderr}");
+    assert!(stderr.contains("memory: used=false"), "{stderr}");
+    assert!(stderr.contains("routing: local-first"), "{stderr}");
 }

@@ -364,8 +364,10 @@ tasks:
     deliverables: [shx-cli/src/render.rs]
     acceptance:
       - snapshot test of --why output; never writes to stdout
-    status: pending
-    owner: null
+    notes: verify=cargo xtask ci green; why_snapshot, why_never_on_stdout. Routing trace is a T-403 placeholder.
+    status: completed
+    owner: grok-4.6
+    branch: feat/t-206-why
 
   # ── Wave 5 · M3 Safety UX ────────────────────────────────────────────────
   - id: T-304

@@ -11,6 +11,9 @@ While pre-1.0, breaking changes bump the **minor** version and are called out un
 
 ### Added
 
+- `shx --why` prints a stderr block naming the backend, profile, budget
+  truncation, and the memory entries (history, vocabulary, snippets) used.
+  Combined with `--json` it still goes to stderr; stdout stays the JSON object.
 - `shx teach <term> <expansion>`, `--list`, and `--forget` manage shorthand
   vocabulary (taught weight 2.0; learned terms apply only at ≥ 1.5).
 - Translations pull a token-budgeted slice of prior history, vocabulary, and

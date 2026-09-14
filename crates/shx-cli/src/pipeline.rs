@@ -37,6 +37,33 @@ pub struct TranslateOut {
     pub warnings: Vec<String>,
     /// Raw model text (`--verbose`).
     pub raw: String,
+    /// Data for `--why` (stderr only).
+    pub why: WhyInfo,
+}
+
+/// Explainability payload. Never printed on stdout.
+#[derive(Debug, Clone, Default)]
+pub struct WhyInfo {
+    /// Memory was consulted.
+    pub memory_used: bool,
+    /// Budget dropped entries.
+    pub truncated: bool,
+    /// Estimated memory tokens after cap.
+    pub tokens: usize,
+    /// Configured cap.
+    pub max_tokens: u32,
+    /// History rows in the bundle (id, input, command).
+    pub history: Vec<(Option<i64>, String, String)>,
+    /// Vocab term=expansion.
+    pub vocabulary: Vec<(String, String)>,
+    /// Snippet names.
+    pub snippets: Vec<String>,
+    /// Profile name.
+    pub profile_name: String,
+    /// Profile ports.
+    pub ports: Vec<u16>,
+    /// Docker preference.
+    pub prefer_docker: bool,
 }
 
 /// Failures the CLI maps onto the exit-code table.
@@ -117,7 +144,7 @@ pub fn run(
         },
     };
 
-    let ctx = assemble_context(cli, config, &text);
+    let (ctx, why) = assemble_context(cli, config, &text);
     let req = PromptBuilder.build(&intent, &ctx, &NoopRedactor);
     let backend = MockBackend::new();
     let started = Instant::now();
@@ -197,16 +224,24 @@ pub fn run(
         from_cache: false,
         warnings,
         raw: resp.raw,
+        why,
     })
 }
 
-fn assemble_context(cli: &Cli, config: &Config, text: &str) -> ContextBundle {
+fn assemble_context(cli: &Cli, config: &Config, text: &str) -> (ContextBundle, WhyInfo) {
     let base = empty_bundle(config);
+    let mut why = WhyInfo {
+        profile_name: base.profile.name.clone(),
+        ports: base.profile.ports.clone(),
+        prefer_docker: base.profile.prefer_docker,
+        max_tokens: config.memory.context.max_tokens,
+        ..WhyInfo::default()
+    };
     if !config.memory.enabled || cli.no_memory {
-        return base;
+        return (base, why);
     }
     let Ok(store) = open_store(config) else {
-        return base;
+        return (base, why);
     };
     let budget = ContextBudget {
         recent: config.memory.context.recent,
@@ -214,9 +249,33 @@ fn assemble_context(cli: &Cli, config: &Config, text: &str) -> ContextBundle {
         shell: config.memory.context.shell,
         max_tokens: config.memory.context.max_tokens,
     };
-    ContextBuilder::new(&SecretRedactor)
-        .build(text, &base.env, &base.profile, &store, budget, None)
-        .unwrap_or(base)
+    match ContextBuilder::new(&SecretRedactor).build_with_stats(
+        text,
+        &base.env,
+        &base.profile,
+        &store,
+        budget,
+        None,
+    ) {
+        Ok((bundle, truncated, tokens)) => {
+            why.memory_used = true;
+            why.truncated = truncated;
+            why.tokens = tokens;
+            why.history = bundle
+                .history
+                .iter()
+                .map(|i| (i.id, i.input_nl.clone(), i.output_cmd.clone()))
+                .collect();
+            why.vocabulary = bundle
+                .vocabulary
+                .iter()
+                .map(|v| (v.term.clone(), v.expansion.clone()))
+                .collect();
+            why.snippets = bundle.snippets.iter().map(|s| s.name.clone()).collect();
+            (bundle, why)
+        }
+        Err(_) => (base, why),
+    }
 }
 
 fn persist_translation(config: &Config, rec: &Interaction) -> shx_memory::Result<i64> {
