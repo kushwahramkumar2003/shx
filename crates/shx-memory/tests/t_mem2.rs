@@ -158,6 +158,52 @@ fn t_mem_2_redacts_history_blocks() {
 }
 
 #[test]
+fn taught_beats_learned_and_one_off_not_applied() {
+    let store = InMemoryStore::default();
+    store
+        .upsert_vocabulary(&shx_memory::vocab::taught("pg", "postgres", 1))
+        .unwrap();
+    store
+        .upsert_vocabulary(&VocabEntry {
+            term: "pg".into(),
+            expansion: "postgresql".into(),
+            weight: 3.0,
+            source: VocabSource::Learned,
+            last_used_ts: 1,
+            use_count: 9,
+        })
+        .unwrap();
+    store
+        .upsert_vocabulary(&VocabEntry {
+            term: "k8s".into(),
+            expansion: "k8s".into(),
+            weight: 0.5,
+            source: VocabSource::Learned,
+            last_used_ts: 1,
+            use_count: 1,
+        })
+        .unwrap();
+    let bundle = ContextBuilder::new(&SecretRedactor)
+        .build(
+            "run pg on k8s",
+            &env(),
+            &profile(),
+            &store,
+            ContextBudget::default(),
+            None,
+        )
+        .unwrap();
+    let pgs: Vec<_> = bundle
+        .vocabulary
+        .iter()
+        .filter(|v| v.term == "pg")
+        .collect();
+    assert_eq!(pgs.len(), 1);
+    assert_eq!(pgs[0].expansion, "postgres");
+    assert!(!bundle.vocabulary.iter().any(|v| v.term == "k8s"));
+}
+
+#[test]
 fn t_mem_2_empty_store_ok() {
     let store = InMemoryStore::default();
     let bundle = ContextBuilder::new(&SecretRedactor)

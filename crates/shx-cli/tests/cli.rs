@@ -312,3 +312,32 @@ fn history_grep_and_prune() {
         .assert()
         .success();
 }
+
+#[test]
+fn teach_list_forget() {
+    let home = unique_home();
+    shx_in(&home)
+        .args(["teach", "pg", "postgres"])
+        .assert()
+        .success();
+    let assert = shx_in(&home)
+        .args(["teach", "--list", "--json"])
+        .assert()
+        .success();
+    let stdout = String::from_utf8_lossy(&assert.get_output().stdout);
+    let v: serde_json::Value = serde_json::from_str(stdout.trim()).expect("json");
+    assert_eq!(v[0]["term"], "pg");
+    assert_eq!(v[0]["expansion"], "postgres");
+    assert_eq!(v[0]["source"], "taught");
+    shx_in(&home)
+        .args(["teach", "--forget", "pg"])
+        .assert()
+        .success();
+    let assert = shx_in(&home)
+        .args(["teach", "--list", "--json"])
+        .assert()
+        .success();
+    let stdout = String::from_utf8_lossy(&assert.get_output().stdout);
+    let v: serde_json::Value = serde_json::from_str(stdout.trim()).expect("json");
+    assert_eq!(v.as_array().map(Vec::len).unwrap_or(1), 0);
+}

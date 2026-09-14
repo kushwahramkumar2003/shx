@@ -11,6 +11,8 @@ While pre-1.0, breaking changes bump the **minor** version and are called out un
 
 ### Added
 
+- `shx teach <term> <expansion>`, `--list`, and `--forget` manage shorthand
+  vocabulary (taught weight 2.0; learned terms apply only at ≥ 1.5).
 - Translations pull a token-budgeted slice of prior history, vocabulary, and
   snippets into the prompt (redacted).
 - `shx history` lists, shows, exports (`--json`/`--jsonl`), prunes, and

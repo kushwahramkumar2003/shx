@@ -88,6 +88,42 @@ impl SqliteStore {
         let n = conn.execute("DELETE FROM interactions", [])?;
         Ok(n as u64)
     }
+
+    /// Delete vocabulary rows for `term`.
+    pub fn forget_vocabulary(&self, term: &str) -> Result<u64> {
+        let conn = self.lock()?;
+        let n = conn.execute(
+            "DELETE FROM vocabulary WHERE term = ?1",
+            params![term.trim().to_ascii_lowercase()],
+        )?;
+        Ok(n as u64)
+    }
+
+    /// Prune using an explicit timestamp (FakeClock).
+    pub fn prune_at(&self, policy: &PrunePolicy, now: i64) -> Result<PruneReport> {
+        let conn = self.lock()?;
+        let cutoff = now.saturating_sub(i64::from(policy.retention_days) * DAY_MS);
+        let deleted = conn.execute("DELETE FROM interactions WHERE ts < ?1", params![cutoff])?;
+        let mut stripped = 0usize;
+        if !policy.keep_danger {
+            let danger_cut = now.saturating_sub(30 * DAY_MS);
+            stripped = conn.execute(
+                "UPDATE interactions SET output_cmd = ''
+                 WHERE risk_level = 'danger' AND ts < ?1 AND output_cmd != ''",
+                params![danger_cut],
+            )?;
+        }
+        let decayed = conn.execute(
+            "UPDATE vocabulary SET weight = weight * 0.98
+             WHERE last_used_ts < ?1",
+            params![now.saturating_sub(crate::vocab::IDLE_MS)],
+        )?;
+        Ok(PruneReport {
+            interactions_deleted: deleted as u64,
+            vocab_decayed: decayed as u64,
+            danger_commands_stripped: stripped as u64,
+        })
+    }
 }
 
 fn configure(conn: &Connection) -> Result<()> {
@@ -420,28 +456,6 @@ impl MemoryStore for SqliteStore {
     }
 
     fn prune(&self, policy: &PrunePolicy) -> Result<PruneReport> {
-        let conn = self.lock()?;
-        let now = now_ms();
-        let cutoff = now.saturating_sub(i64::from(policy.retention_days) * DAY_MS);
-        let deleted = conn.execute("DELETE FROM interactions WHERE ts < ?1", params![cutoff])?;
-        let mut stripped = 0usize;
-        if !policy.keep_danger {
-            let danger_cut = now.saturating_sub(30 * DAY_MS);
-            stripped = conn.execute(
-                "UPDATE interactions SET output_cmd = ''
-                 WHERE risk_level = 'danger' AND ts < ?1 AND output_cmd != ''",
-                params![danger_cut],
-            )?;
-        }
-        let decayed = conn.execute(
-            "UPDATE vocabulary SET weight = weight * 0.98
-             WHERE last_used_ts < ?1",
-            params![now.saturating_sub(30 * DAY_MS)],
-        )?;
-        Ok(PruneReport {
-            interactions_deleted: deleted as u64,
-            vocab_decayed: decayed as u64,
-            danger_commands_stripped: stripped as u64,
-        })
+        self.prune_at(policy, now_ms())
     }
 }

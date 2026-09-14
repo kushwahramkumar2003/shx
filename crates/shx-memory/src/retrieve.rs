@@ -127,13 +127,9 @@ impl<'a> ContextBuilder<'a> {
         let mut top = store.vocabulary(&[])?;
         top.truncate(5);
         matched.extend(top);
-        matched.sort_by(|a, b| {
-            b.weight
-                .total_cmp(&a.weight)
-                .then(a.term.cmp(&b.term))
-                .then(a.expansion.cmp(&b.expansion))
-        });
-        matched.dedup_by(|a, b| a.term == b.term && a.expansion == b.expansion);
+        matched.retain(crate::vocab::is_applied);
+        matched.sort_by(crate::vocab::cmp_rank);
+        matched.dedup_by(|a, b| a.term == b.term);
         Ok(matched)
     }
 

@@ -5,8 +5,8 @@ use std::path::PathBuf;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use rusqlite::Connection;
-use shx_core::{Interaction, RiskLevel, Scope};
-use shx_memory::{InMemoryStore, MemoryStore, SqliteStore, record};
+use shx_core::{Interaction, PrunePolicy, RiskLevel, Scope, VocabEntry, VocabSource};
+use shx_memory::{InMemoryStore, MemoryStore, SqliteStore, record, vocab};
 
 fn unique_dir() -> PathBuf {
     let nanos = SystemTime::now()
@@ -115,4 +115,43 @@ fn unix_perms_dir_0700_file_0600() {
     let file_mode = fs::metadata(&path).unwrap().permissions().mode() & 0o777;
     assert_eq!(dir_mode, 0o700, "dir {dir_mode:o}");
     assert_eq!(file_mode, 0o600, "file {file_mode:o}");
+}
+
+#[test]
+fn vocab_decay_deterministic_with_fake_clock() {
+    let store = InMemoryStore::default();
+    let clock = vocab::FakeClock::new(1_000);
+    store
+        .upsert_vocabulary(&VocabEntry {
+            term: "pg".into(),
+            expansion: "postgres".into(),
+            weight: 2.0,
+            source: VocabSource::Learned,
+            last_used_ts: clock.now(),
+            use_count: 1,
+        })
+        .unwrap();
+    store
+        .prune_at(
+            &PrunePolicy {
+                retention_days: 3650,
+                keep_danger: true,
+            },
+            clock.now(),
+        )
+        .unwrap();
+    let w0 = store.vocabulary(&["pg".into()]).unwrap()[0].weight;
+    assert!((w0 - 2.0).abs() < 1e-9);
+    clock.advance(vocab::IDLE_MS);
+    store
+        .prune_at(
+            &PrunePolicy {
+                retention_days: 3650,
+                keep_danger: true,
+            },
+            clock.now(),
+        )
+        .unwrap();
+    let w1 = store.vocabulary(&["pg".into()]).unwrap()[0].weight;
+    assert!((w1 - 2.0 * vocab::DECAY).abs() < 1e-9);
 }

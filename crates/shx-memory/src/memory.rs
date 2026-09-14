@@ -51,6 +51,54 @@ impl InMemoryStore {
         g.snippets.push(s);
         Ok(())
     }
+
+    /// Delete vocabulary rows for `term`.
+    pub fn forget_vocabulary(&self, term: &str) -> Result<u64> {
+        let t = term.trim().to_ascii_lowercase();
+        let mut g = self
+            .inner
+            .lock()
+            .map_err(|e| MemoryError::Message(e.to_string()))?;
+        let before = g.vocab.len();
+        g.vocab.retain(|e| e.term != t);
+        Ok((before - g.vocab.len()) as u64)
+    }
+
+    /// Prune using an explicit timestamp (FakeClock).
+    pub fn prune_at(&self, policy: &PrunePolicy, now: i64) -> Result<PruneReport> {
+        let mut g = self
+            .inner
+            .lock()
+            .map_err(|e| MemoryError::Message(e.to_string()))?;
+        let cutoff = now.saturating_sub(i64::from(policy.retention_days) * DAY_MS);
+        let danger_cut = now.saturating_sub(30 * DAY_MS);
+        let before = g.interactions.len();
+        g.interactions.retain(|i| i.ts >= cutoff);
+        let deleted = (before - g.interactions.len()) as u64;
+        let mut stripped = 0u64;
+        if !policy.keep_danger {
+            for i in &mut g.interactions {
+                if i.risk_level == RiskLevel::Danger
+                    && i.ts < danger_cut
+                    && !i.output_cmd.is_empty()
+                {
+                    i.output_cmd.clear();
+                    stripped += 1;
+                }
+            }
+        }
+        let mut decayed = 0u64;
+        for v in &mut g.vocab {
+            if crate::vocab::decay_if_idle(v, now) {
+                decayed += 1;
+            }
+        }
+        Ok(PruneReport {
+            interactions_deleted: deleted,
+            vocab_decayed: decayed,
+            danger_commands_stripped: stripped,
+        })
+    }
 }
 
 impl MemoryStore for InMemoryStore {
@@ -162,40 +210,7 @@ impl MemoryStore for InMemoryStore {
     }
 
     fn prune(&self, policy: &PrunePolicy) -> Result<PruneReport> {
-        let mut g = self
-            .inner
-            .lock()
-            .map_err(|e| MemoryError::Message(e.to_string()))?;
-        let now = now_ms();
-        let cutoff = now.saturating_sub(i64::from(policy.retention_days) * DAY_MS);
-        let danger_cut = now.saturating_sub(30 * DAY_MS);
-        let before = g.interactions.len();
-        g.interactions.retain(|i| i.ts >= cutoff);
-        let deleted = (before - g.interactions.len()) as u64;
-        let mut stripped = 0u64;
-        if !policy.keep_danger {
-            for i in &mut g.interactions {
-                if i.risk_level == RiskLevel::Danger
-                    && i.ts < danger_cut
-                    && !i.output_cmd.is_empty()
-                {
-                    i.output_cmd.clear();
-                    stripped += 1;
-                }
-            }
-        }
-        let mut decayed = 0u64;
-        for v in &mut g.vocab {
-            if now.saturating_sub(v.last_used_ts) >= 30 * DAY_MS {
-                v.weight *= 0.98;
-                decayed += 1;
-            }
-        }
-        Ok(PruneReport {
-            interactions_deleted: deleted,
-            vocab_decayed: decayed,
-            danger_commands_stripped: stripped,
-        })
+        self.prune_at(policy, now_ms())
     }
 }
 

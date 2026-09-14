@@ -309,6 +309,7 @@ fn dispatch(cli: Cli) -> anyhow::Result<i32> {
             } => commands::doctor::run(*json, *redaction_test, &cli),
             Commands::Config { cmd } => commands::config::run(cmd.as_ref(), &cli),
             Commands::History { .. } => commands::history::run(&cli),
+            Commands::Teach { .. } => commands::teach::run(&cli),
             other => stub_command(other),
         });
     }
@@ -362,11 +363,11 @@ fn dispatch(cli: Cli) -> anyhow::Result<i32> {
 
 fn stub_command(cmd: &Commands) -> i32 {
     let name = match cmd {
-        Commands::Doctor { .. } | Commands::Config { .. } | Commands::History { .. } => {
-            unreachable!("dispatched above")
-        }
+        Commands::Doctor { .. }
+        | Commands::Config { .. }
+        | Commands::History { .. }
+        | Commands::Teach { .. } => unreachable!("dispatched above"),
         Commands::Snippet { .. } => "snippet",
-        Commands::Teach { .. } => "teach",
         Commands::Feedback { .. } => "feedback",
         Commands::ImportHistory { .. } => "import-history",
         Commands::Completion { .. } => "completion",

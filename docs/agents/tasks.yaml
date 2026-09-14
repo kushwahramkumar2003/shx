@@ -349,8 +349,10 @@ tasks:
     acceptance:
       - taught beats learned on conflict; one-off coincidences don't become vocabulary
       - decay deterministic with FakeClock; apply only when weight >= 1.5
-    status: pending
-    owner: null
+    notes: verify=cargo xtask ci green; taught_beats_learned, one_off_good_is_not_applied, fake_clock_decay, teach_list_forget.
+    status: completed
+    owner: grok-4.6
+    branch: feat/t-205-teach
 
   - id: T-206
     title: --why explainability

@@ -10,6 +10,7 @@ pub mod record;
 pub mod retrieve;
 pub mod sqlite;
 pub mod store;
+pub mod vocab;
 
 pub use memory::InMemoryStore;
 pub use retrieve::{ContextBudget, ContextBuilder, memory_tokens};
