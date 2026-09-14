@@ -33,6 +33,7 @@ anyhow = "1.0"
 assert_cmd = "2.0"
 # Sync HTTP, rustls only (ADR-006). No OpenSSL, no tokio, no reqwest.
 ureq = { version = "2.12", default-features = false, features = ["tls", "json"] }
+rusqlite = { version = "0.32", features = ["bundled"] }
 
 [workspace.lints.rust]
 unsafe_code = "forbid"

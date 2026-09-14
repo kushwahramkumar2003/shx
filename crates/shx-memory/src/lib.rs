@@ -4,6 +4,11 @@
 
 #![forbid(unsafe_code)]
 
+pub mod memory;
+pub mod paths;
+pub mod sqlite;
 pub mod store;
 
-pub use store::{InMemoryStore, MemoryError, MemoryStore, Result};
+pub use memory::InMemoryStore;
+pub use sqlite::SqliteStore;
+pub use store::{MemoryError, MemoryStore, Result};

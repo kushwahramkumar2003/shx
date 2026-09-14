@@ -11,5 +11,10 @@ description = "SQLite-backed memory store and retrieval for shx"
 workspace = true
 
 [dependencies]
+rusqlite.workspace = true
+serde_json.workspace = true
 shx-core.workspace = true
 thiserror.workspace = true
+
+[dev-dependencies]
+rusqlite.workspace = true

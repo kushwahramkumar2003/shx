@@ -284,8 +284,10 @@ tasks:
       - T-MEM-3 migration from v0 fixture, rows survive
       - InMemoryStore and SQLite impl pass the same conformance suite
       - 0600/0700 perms on Unix; prune applies retention_days + 30-day danger rule
-    status: pending
-    owner: null
+    notes: verify=cargo xtask ci green; t_mem_3_v0_fixture_migrates_and_rows_survive, in_memory_conformance, sqlite_memory_conformance, unix_perms_dir_0700_file_0600.
+    status: completed
+    owner: grok-4.6
+    branch: feat/t-201-memory-store
 
   - id: T-202
     title: Write path + redaction-at-write
