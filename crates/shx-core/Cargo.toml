@@ -11,3 +11,5 @@ description = "Domain types and pure pipeline stages for shx"
 workspace = true
 
 [dependencies]
+serde.workspace = true
+serde_json.workspace = true

@@ -12,4 +12,8 @@ description = "LLM backend trait and provider integrations for shx"
 workspace = true
 
 [dependencies]
+serde.workspace = true
 shx-core.workspace = true
+
+[dev-dependencies]
+serde_json.workspace = true

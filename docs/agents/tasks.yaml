@@ -67,9 +67,10 @@ tasks:
       - exact signatures from docs/02-ARCHITECTURE.md §4 compile
       - doc comments on every public item
       - serde round-trip test per type
-    notes: Project-wide serialization point. Architect sign-off required.
-    status: pending
-    owner: null
+    notes: Project-wide serialization point. Architect sign-off required. verify=cargo xtask ci green; serde_roundtrip_each_type + Backend/MemoryStore/Redactor tests pass.
+    status: completed
+    owner: grok-4.6
+    branch: feat/t-003-core-types
 
   - id: T-004
     title: Config loader

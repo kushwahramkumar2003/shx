@@ -12,3 +12,4 @@ workspace = true
 
 [dependencies]
 shx-core.workspace = true
+thiserror.workspace = true

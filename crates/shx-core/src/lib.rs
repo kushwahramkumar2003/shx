@@ -4,3 +4,9 @@
 //! `shx-*` crate and performs no I/O.
 
 #![forbid(unsafe_code)]
+
+pub mod redact;
+pub mod types;
+
+pub use redact::{NoopRedactor, Redacted, Redactor};
+pub use types::*;
