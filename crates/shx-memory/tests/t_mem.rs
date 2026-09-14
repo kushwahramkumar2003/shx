@@ -5,8 +5,8 @@ use std::path::PathBuf;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use rusqlite::Connection;
-use shx_core::Scope;
-use shx_memory::{MemoryStore, SqliteStore};
+use shx_core::{Interaction, RiskLevel, Scope};
+use shx_memory::{InMemoryStore, MemoryStore, SqliteStore, record};
 
 fn unique_dir() -> PathBuf {
     let nanos = SystemTime::now()
@@ -49,6 +49,59 @@ fn t_mem_3_v0_fixture_migrates_and_rows_survive() {
             .unwrap()
     };
     assert_eq!(v, 1);
+}
+
+/// T-MEM-1: a fake key is masked on write and never comes back raw.
+#[test]
+fn t_mem_1_record_fake_key_read_back_masked() {
+    let secret = "sk-TESTFAKE0000000000000000";
+    let raw = Interaction {
+        id: None,
+        ts: 1,
+        session_id: "s".into(),
+        project_id: None,
+        cwd: "/tmp".into(),
+        os: "macos".into(),
+        shell: "zsh".into(),
+        input_nl: format!("export TOKEN={secret}"),
+        output_cmd: format!("curl -H token={secret} https://api"),
+        explanation: Some(format!("uses {secret}")),
+        backend: "mock".into(),
+        model: "fixture".into(),
+        confidence: Some(0.8),
+        latency_ms: 42,
+        risk_level: RiskLevel::Review,
+        risk_notes: vec!["secrets.inline".into()],
+        from_cache: false,
+        accepted: None,
+        executed: None,
+        tags: vec![],
+    };
+    for store in [
+        &InMemoryStore::default() as &dyn MemoryStore,
+        &SqliteStore::open_in_memory().unwrap() as &dyn MemoryStore,
+    ] {
+        let id = store.record_interaction(&raw).unwrap();
+        let rows = store.recent(1, Scope::Tool).unwrap();
+        assert_eq!(rows[0].id, Some(id));
+        assert!(!rows[0].from_cache);
+        assert_eq!(rows[0].risk_level, RiskLevel::Review);
+        assert_eq!(rows[0].latency_ms, 42);
+        for field in [
+            &rows[0].input_nl,
+            &rows[0].output_cmd,
+            rows[0].explanation.as_deref().unwrap_or(""),
+        ] {
+            assert!(
+                !record::looks_unredacted_secret(field),
+                "raw secret survived: {field}"
+            );
+            assert!(
+                field.contains("«redacted:"),
+                "expected redaction marker in {field}"
+            );
+        }
+    }
 }
 
 #[cfg(unix)]

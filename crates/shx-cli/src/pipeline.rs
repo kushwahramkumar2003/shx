@@ -1,4 +1,4 @@
-//! Translate pipeline for T-006: MockBackend, no memory.
+//! Translate pipeline: mock backend, optional SQLite write with redaction.
 
 use std::env;
 use std::io::{self, IsTerminal, Read};
@@ -7,10 +7,11 @@ use std::time::Instant;
 
 use shx_config::{Config, FlagOverrides};
 use shx_core::{
-    Candidate, ContextBundle, EnvInfo, ForceBackend, Intent, IntentFlags, NoopRedactor, Profile,
-    PromptBuilder, RiskAssessment, RiskLevel,
+    Candidate, ContextBundle, EnvInfo, ForceBackend, Intent, IntentFlags, Interaction,
+    NoopRedactor, Profile, PromptBuilder, RiskAssessment, RiskClassifier, RiskLevel,
 };
 use shx_llm::{Backend, BackendError, MockBackend};
+use shx_memory::{MemoryStore, SqliteStore, paths};
 
 use crate::Cli;
 
@@ -107,7 +108,7 @@ pub fn run(
             json: cli.json,
             why: cli.why,
             offline: cli.offline,
-            no_memory: true,
+            no_memory: cli.no_memory,
             exit_on_risk: cli.exit_on_risk,
             copy: cli.copy,
             quiet: cli.quiet,
@@ -132,14 +133,63 @@ pub fn run(
         ));
     }
 
-    Ok(TranslateOut {
-        input: text,
-        candidates,
-        risk: RiskAssessment {
+    let risk = candidates
+        .first()
+        .map(|c| RiskClassifier.assess(&c.command))
+        .unwrap_or(RiskAssessment {
             level: RiskLevel::Safe,
             rules: vec![],
             notes: vec![],
-        },
+        });
+
+    let mut warnings = warnings;
+    if config.memory.enabled && !cli.no_memory {
+        let rec = Interaction {
+            id: None,
+            ts: std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .map(|d| d.as_millis() as i64)
+                .unwrap_or(0),
+            session_id: "cli".into(),
+            project_id: None,
+            cwd: env::current_dir()
+                .map(|p| p.display().to_string())
+                .unwrap_or_else(|_| ".".into()),
+            os: env::consts::OS.to_string(),
+            shell: env::var("SHELL")
+                .ok()
+                .and_then(|p| {
+                    PathBuf::from(p)
+                        .file_name()
+                        .map(|s| s.to_string_lossy().into_owned())
+                })
+                .unwrap_or_else(|| "unknown".into()),
+            input_nl: text.clone(),
+            output_cmd: candidates
+                .first()
+                .map(|c| c.command.clone())
+                .unwrap_or_default(),
+            explanation: candidates.first().map(|c| c.explanation.clone()),
+            backend: resp.backend_id.clone(),
+            model: resp.model.clone(),
+            confidence: resp.confidence,
+            latency_ms,
+            risk_level: risk.level,
+            risk_notes: risk.rules.iter().map(|r| r.0.clone()).collect(),
+            from_cache: false,
+            accepted: None,
+            executed: None,
+            tags: vec![],
+        };
+        if let Err(e) = persist_translation(config, &rec) {
+            warnings.push(format!("memory degraded: {e}"));
+        }
+    }
+
+    Ok(TranslateOut {
+        input: text,
+        candidates,
+        risk,
         backend_id: resp.backend_id,
         model: resp.model,
         latency_ms,
@@ -147,6 +197,16 @@ pub fn run(
         warnings,
         raw: resp.raw,
     })
+}
+
+fn persist_translation(config: &Config, rec: &Interaction) -> shx_memory::Result<i64> {
+    let path = if config.memory.path.is_empty() {
+        paths::default_db_path()
+    } else {
+        PathBuf::from(&config.memory.path)
+    };
+    let store = SqliteStore::open(&path)?;
+    store.record_interaction(rec)
 }
 
 /// CLI flags that overlay config.

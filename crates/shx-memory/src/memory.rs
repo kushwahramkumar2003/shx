@@ -49,7 +49,7 @@ impl MemoryStore for InMemoryStore {
             .map_err(|e| MemoryError::Message(e.to_string()))?;
         let id = g.next_id;
         g.next_id += 1;
-        let mut row = i.clone();
+        let mut row = crate::record::prepare_interaction(i);
         row.id = Some(id);
         g.interactions.push(row);
         Ok(id)

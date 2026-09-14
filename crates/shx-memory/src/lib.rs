@@ -6,6 +6,7 @@
 
 pub mod memory;
 pub mod paths;
+pub mod record;
 pub mod sqlite;
 pub mod store;
 

@@ -301,8 +301,10 @@ tasks:
       - T-MEM-1 record a fake key → read back masked
       - no code path writes a raw secret
       - record called with from_cache/risk_level/latency_ms populated
-    status: pending
-    owner: null
+    notes: verify=cargo xtask ci green; t_mem_1_record_fake_key_read_back_masked.
+    status: completed
+    owner: grok-4.6
+    branch: feat/t-202-redact-write
 
   - id: T-203
     title: Context builder v1

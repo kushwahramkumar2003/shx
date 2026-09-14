@@ -11,6 +11,8 @@ While pre-1.0, breaking changes bump the **minor** version and are called out un
 
 ### Added
 
+- Successful translations are stored locally (redacted). `--no-memory` skips
+  the write. Memory failures warn on stderr and still print the command.
 - `shx doctor` probes the configured Ollama endpoint (`GET /api/tags`) and
   exits 4 when it is unreachable; `--offline` still uses the mock.
 - Ollama backend (`POST /api/chat`, `GET /api/tags`) via sync ureq+rustls.

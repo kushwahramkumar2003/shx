@@ -54,6 +54,24 @@ impl SqliteStore {
             .lock()
             .map_err(|e| MemoryError::Message(e.to_string()))
     }
+
+    /// Insert a shell-history line (redacted). Used by `import-history` (T-605).
+    pub fn record_shell(
+        &self,
+        ts: i64,
+        cwd: Option<&str>,
+        cmd: &str,
+        exit_code: Option<i32>,
+        source: &str,
+    ) -> Result<i64> {
+        let cmd = crate::record::prepare_shell_cmd(cmd);
+        let conn = self.lock()?;
+        conn.execute(
+            "INSERT INTO shell_history (ts, cwd, cmd, exit_code, source) VALUES (?1,?2,?3,?4,?5)",
+            params![ts, cwd, cmd, exit_code, source],
+        )?;
+        Ok(conn.last_insert_rowid())
+    }
 }
 
 fn configure(conn: &Connection) -> Result<()> {
@@ -165,6 +183,7 @@ fn select_sql(_scope: &Scope, extra: &str, limit_pos: u32) -> String {
 
 impl MemoryStore for SqliteStore {
     fn record_interaction(&self, i: &Interaction) -> Result<i64> {
+        let i = crate::record::prepare_interaction(i);
         let conn = self.lock()?;
         conn.execute(
             "INSERT INTO interactions (
