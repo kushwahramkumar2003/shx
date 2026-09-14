@@ -395,8 +395,10 @@ tasks:
     deliverables: [shx-cli/src/commands/doctor.rs]
     acceptance:
       - reports per-pattern pass/fail; exit 1 if any pattern fails
-    status: pending
-    owner: null
+    notes: verify=cargo xtask ci green; bundled_corpus_all_pass, failing_pattern_is_not_ok, doctor_redaction_test_reports_patterns, doctor_redaction_test_json_shape.
+    status: completed
+    owner: grok-4.6
+    branch: feat/t-305-redaction-test
 
   # ── Wave 6 · M4 Cloud + routing ──────────────────────────────────────────
   - id: T-401

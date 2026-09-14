@@ -281,6 +281,8 @@ fn doctor_json_reports_checks() {
     assert_eq!(v["checks"]["backend"]["ok"], true);
     assert_eq!(v["checks"]["backend"]["id"], "mock");
     assert_eq!(v["checks"]["backend"]["reachable"], true);
+    assert_eq!(v["checks"]["redaction"]["skipped"], true);
+    assert_eq!(v["checks"]["redaction"]["ok"], true);
     assert!(v["config"].is_object(), "effective config: {v}");
     assert!(v["config"]["backend"].is_object());
 }
@@ -302,6 +304,61 @@ timeout_ms = 400
         .args(["--config", cfg.to_str().unwrap(), "doctor", "--json"])
         .assert()
         .code(4);
+}
+
+#[test]
+fn doctor_redaction_test_reports_patterns() {
+    let assert = shx()
+        .args(["--offline", "doctor", "--redaction-test"])
+        .assert()
+        .success();
+    let stdout = String::from_utf8_lossy(&assert.get_output().stdout);
+    let stderr = String::from_utf8_lossy(&assert.get_output().stderr);
+    assert!(
+        stdout.is_empty(),
+        "human doctor report is stderr-only: {stdout:?}"
+    );
+    assert!(
+        stderr.contains("aws-key") && stderr.contains("pass") && stderr.contains("negatives"),
+        "per-pattern pass/fail on stderr: {stderr:?}"
+    );
+    assert!(
+        stderr.contains("passed"),
+        "coverage counts on stderr: {stderr:?}"
+    );
+}
+
+#[test]
+fn doctor_redaction_test_json_shape() {
+    let assert = shx()
+        .args(["--offline", "doctor", "--redaction-test", "--json"])
+        .assert()
+        .success();
+    let stdout = String::from_utf8_lossy(&assert.get_output().stdout);
+    let v: serde_json::Value = serde_json::from_str(stdout.trim()).expect("json");
+    assert_eq!(v["ok"], true);
+    let red = &v["checks"]["redaction"];
+    assert_eq!(red["ok"], true);
+    assert_eq!(red["skipped"], false);
+    assert!(red["total"].as_u64().unwrap() >= 16);
+    assert_eq!(red["passed"], red["total"]);
+    let patterns = red["patterns"].as_array().expect("patterns");
+    assert!(
+        patterns
+            .iter()
+            .any(|p| p["id"] == "aws-key" && p["ok"] == true),
+        "aws-key pattern: {patterns:?}"
+    );
+    assert!(
+        patterns
+            .iter()
+            .any(|p| p["id"] == "negatives" && p["ok"] == true),
+        "negatives pattern: {patterns:?}"
+    );
+    assert!(
+        patterns.iter().all(|p| p["ok"] == true),
+        "every pattern pass: {patterns:?}"
+    );
 }
 
 #[test]

@@ -11,6 +11,8 @@ While pre-1.0, breaking changes bump the **minor** version and are called out un
 
 ### Added
 
+- `shx doctor --redaction-test` runs the secret-redaction corpus and reports
+  per-pattern pass/fail (exit 1 if any pattern fails).
 - Risk banners on stderr (yellow REVIEW, red DANGER) with *what* and *why*.
   `--exit-on-risk` exits 3 when risk ≥ Review; catastrophic intents are
   refused (exit 6, no command). Chained commands at Review/Danger keep

@@ -109,7 +109,7 @@ enum Commands {
         /// JSON report.
         #[arg(long)]
         json: bool,
-        /// Run the redaction corpus (T-305).
+        /// Run the redaction corpus and report per-pattern pass/fail.
         #[arg(long)]
         redaction_test: bool,
     },
