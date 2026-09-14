@@ -101,8 +101,10 @@ tasks:
     acceptance:
       - fault injection Timeout|Unreachable|Auth|ModelMissing|BadOutput|RateLimit → exact BackendError
       - deterministic (same input → same output)
-    status: pending
-    owner: null
+    notes: verify=cargo xtask ci green; each_injected_fault + deterministic_same_input_same_output.
+    status: completed
+    owner: grok-4.6
+    branch: feat/t-005-mock-backend
 
   - id: T-006
     title: CLI skeleton + output discipline
