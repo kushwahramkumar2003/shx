@@ -428,8 +428,10 @@ tasks:
     acceptance:
       - json_schema ↔ json_object probe cached in meta; downgrade path tested with two mock servers
       - works against a base_url with no key (LM Studio)
-    status: pending
-    owner: null
+    notes: verify=cargo xtask ci green; probe_keeps_json_schema_when_accepted, probe_downgrades_when_json_schema_rejected, two_mock_servers_diverge_on_probe, lm_studio_no_key_omits_authorization.
+    status: completed
+    owner: grok-4.6
+    branch: feat/t-402-openai-compat
 
   - id: T-403
     title: BackendRouter (local-first escalation)

@@ -11,6 +11,9 @@ While pre-1.0, breaking changes bump the **minor** version and are called out un
 
 ### Added
 
+- OpenAI-compatible backend (`POST /chat/completions`) with a per-`base_url`
+  `json_schema` → `json_object` capability probe cached in meta. Works with no
+  API key (LM Studio). Translate still requires `--offline` until T-403.
 - Anthropic backend (`POST /v1/messages`, forced single-tool `input_schema`).
   The API key is read from the env var named in config (`api_key_env`), never
   from the file. Translate still requires `--offline` until the router (T-403).
