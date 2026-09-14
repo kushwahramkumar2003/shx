@@ -7,14 +7,13 @@ use std::time::Instant;
 
 use shx_config::{BackendMode, Config, FlagOverrides};
 use shx_core::{
-    Candidate, ContextBundle, EnvInfo, ForceBackend, Intent, IntentFlags, Interaction,
-    NoopRedactor, Profile, PromptBuilder, RiskAssessment, RiskClassifier, RiskLevel,
-    SecretRedactor,
+    Candidate, ContextBundle, EnvInfo, ForceBackend, Intent, IntentFlags, Interaction, Profile,
+    PromptBuilder, RiskAssessment, RiskClassifier, RiskLevel, SecretRedactor,
 };
 use shx_llm::{
-    AnthropicBackend, AnthropicSettings, Backend, BackendError, BackendRouter, MockBackend,
-    OllamaBackend, OllamaSettings, OpenAiCompatBackend, OpenAiCompatSettings, RouteMode,
-    RouterConfig,
+    AnthropicBackend, AnthropicSettings, Backend, BackendError, BackendRouter, EgressBackend,
+    MockBackend, OllamaBackend, OllamaSettings, OpenAiCompatBackend, OpenAiCompatSettings,
+    RouteMode, RouterConfig,
 };
 use shx_memory::{ContextBudget, ContextBuilder, MemoryStore, SqliteStore, paths};
 
@@ -173,7 +172,7 @@ pub fn run(
     };
 
     let (ctx, mut why) = assemble_context(cli, config, &text);
-    let req = PromptBuilder.build(&intent, &ctx, &NoopRedactor);
+    let req = PromptBuilder.build(&intent, &ctx, &SecretRedactor);
     let router = build_router(cli, config);
     let started = Instant::now();
     let routed = router
@@ -297,7 +296,11 @@ fn build_router(cli: &Cli, config: &Config) -> BackendRouter {
             mode: RouteMode::LocalFirst,
             ..cfg
         };
-        return BackendRouter::new(Box::new(MockBackend::new()), None, cfg);
+        return BackendRouter::new(
+            EgressBackend::wrap_box(Box::new(MockBackend::new())),
+            None,
+            cfg,
+        );
     }
     let local = OllamaBackend::new(OllamaSettings {
         base_url: config.backend.local.base_url.clone(),
@@ -306,7 +309,11 @@ fn build_router(cli: &Cli, config: &Config) -> BackendRouter {
         num_ctx: config.backend.local.num_ctx,
         timeout_ms: config.backend.local.timeout_ms,
     });
-    BackendRouter::new(Box::new(local), cloud_backend(config), cfg)
+    BackendRouter::new(
+        EgressBackend::wrap_box(Box::new(local)),
+        cloud_backend(config).map(EgressBackend::wrap_box),
+        cfg,
+    )
 }
 
 fn route_mode(cli: &Cli, config: &Config) -> RouteMode {

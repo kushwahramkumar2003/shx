@@ -6,6 +6,7 @@
 
 pub mod anthropic;
 pub mod backend;
+pub mod egress;
 pub mod error;
 pub mod http;
 pub mod mock;
@@ -15,6 +16,7 @@ pub mod router;
 
 pub use anthropic::{AnthropicBackend, AnthropicSettings};
 pub use backend::{Backend, BackendError, Capabilities, CostTier, ErrorKind, Health};
+pub use egress::{EgressBackend, redact_request};
 pub use error::{from_bad_output, from_transport, retryable};
 pub use mock::MockBackend;
 pub use ollama::{OllamaBackend, OllamaSettings};

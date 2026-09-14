@@ -11,8 +11,16 @@ description = "LLM backend trait and provider integrations for shx"
 [lints]
 workspace = true
 
+[[test]]
+name = "route_security"
+path = "../../tests/route_security.rs"
+
 [dependencies]
 serde.workspace = true
 serde_json.workspace = true
 shx-core.workspace = true
 ureq.workspace = true
+
+[dev-dependencies]
+serde_json.workspace = true
+shx-core.workspace = true

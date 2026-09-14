@@ -462,8 +462,10 @@ tasks:
     acceptance:
       - T-ROUTE-3 serialized cloud request body contains no known secret
       - redaction asserted for cloud and local paths (defense in depth)
-    status: pending
-    owner: null
+    notes: verify=cargo xtask ci green; t_route_3_cloud_body_redacted, t_route_3_local_body_redacted, redact_request_masks_known_secrets.
+    status: completed
+    owner: grok-4.6
+    branch: feat/t-404-egress
 
   - id: T-405
     title: --local / --cloud flags

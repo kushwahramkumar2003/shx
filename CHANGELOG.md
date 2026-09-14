@@ -9,8 +9,15 @@ While pre-1.0, breaking changes bump the **minor** version and are called out un
 
 ## [Unreleased]
 
+### Security
+
+- Bump `rustls` to 0.23.45 (RUSTSEC-2026-0285).
+
 ### Added
 
+- Egress redaction: every backend request (local and cloud) is run through
+  `SecretRedactor` immediately before serialize. T-ROUTE-3 covers a poisoned
+  fixture.
 - Local-first `BackendRouter`: escalate once on timeout/error/bad-output/low
   confidence/slowness, announce on stderr, and record the trace in `--why`.
   `mode=local` never calls cloud. Translate without `--offline` uses Ollama
