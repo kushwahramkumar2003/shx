@@ -11,6 +11,8 @@ While pre-1.0, breaking changes bump the **minor** version and are called out un
 
 ### Added
 
+- Translations pull a token-budgeted slice of prior history, vocabulary, and
+  snippets into the prompt (redacted).
 - `shx history` lists, shows, exports (`--json`/`--jsonl`), prunes, and
   purges stored translations (`-y --all` required to purge).
 - Successful translations are stored locally (redacted). `--no-memory` skips

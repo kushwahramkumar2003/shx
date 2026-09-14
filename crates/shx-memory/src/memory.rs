@@ -41,6 +41,18 @@ fn now_ms() -> i64 {
 
 const DAY_MS: i64 = 86_400_000;
 
+impl InMemoryStore {
+    /// Test helper: insert a snippet (not on the frozen trait).
+    pub fn insert_snippet(&self, s: Snippet) -> Result<()> {
+        let mut g = self
+            .inner
+            .lock()
+            .map_err(|e| MemoryError::Message(e.to_string()))?;
+        g.snippets.push(s);
+        Ok(())
+    }
+}
+
 impl MemoryStore for InMemoryStore {
     fn record_interaction(&self, i: &Interaction) -> Result<i64> {
         let mut g = self
@@ -93,11 +105,16 @@ impl MemoryStore for InMemoryStore {
     }
 
     fn vocabulary(&self, terms: &[String]) -> Result<Vec<VocabEntry>> {
-        let want: Vec<String> = terms.iter().map(|t| t.to_ascii_lowercase()).collect();
         let g = self
             .inner
             .lock()
             .map_err(|e| MemoryError::Message(e.to_string()))?;
+        if terms.is_empty() {
+            let mut all = g.vocab.clone();
+            all.sort_by(|a, b| b.weight.total_cmp(&a.weight));
+            return Ok(all);
+        }
+        let want: Vec<String> = terms.iter().map(|t| t.to_ascii_lowercase()).collect();
         Ok(g.vocab
             .iter()
             .filter(|e| want.iter().any(|t| t == &e.term))

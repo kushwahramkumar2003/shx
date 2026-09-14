@@ -297,7 +297,24 @@ impl MemoryStore for SqliteStore {
 
     fn vocabulary(&self, terms: &[String]) -> Result<Vec<VocabEntry>> {
         if terms.is_empty() {
-            return Ok(Vec::new());
+            let conn = self.lock()?;
+            let mut stmt = conn.prepare(
+                "SELECT term, expansion, weight, source, last_used_ts, use_count
+                 FROM vocabulary ORDER BY weight DESC, term ASC",
+            )?;
+            let rows = stmt
+                .query_map([], |row| {
+                    Ok(VocabEntry {
+                        term: row.get(0)?,
+                        expansion: row.get(1)?,
+                        weight: row.get(2)?,
+                        source: parse_source(row.get(3)?),
+                        last_used_ts: row.get(4)?,
+                        use_count: row.get::<_, i64>(5)? as u64,
+                    })
+                })?
+                .collect::<rusqlite::Result<Vec<_>>>()?;
+            return Ok(rows);
         }
         let conn = self.lock()?;
         let mut out = Vec::new();

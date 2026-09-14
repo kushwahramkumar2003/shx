@@ -317,8 +317,10 @@ tasks:
     acceptance:
       - T-MEM-2 never exceeds max_tokens, never panics; exact bundle for fixed fixtures
       - deterministic; redaction ran on every block
-    status: pending
-    owner: null
+    notes: verify=cargo xtask ci green; t_mem_2_fixture_deterministic_budget, t_mem_2_never_exceeds_max_tokens, t_mem_2_redacts_history_blocks.
+    status: completed
+    owner: grok-4.6
+    branch: feat/t-203-context-builder
 
   - id: T-204
     title: shx history family

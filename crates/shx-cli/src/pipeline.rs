@@ -9,9 +9,10 @@ use shx_config::{Config, FlagOverrides};
 use shx_core::{
     Candidate, ContextBundle, EnvInfo, ForceBackend, Intent, IntentFlags, Interaction,
     NoopRedactor, Profile, PromptBuilder, RiskAssessment, RiskClassifier, RiskLevel,
+    SecretRedactor,
 };
 use shx_llm::{Backend, BackendError, MockBackend};
-use shx_memory::{MemoryStore, SqliteStore, paths};
+use shx_memory::{ContextBudget, ContextBuilder, MemoryStore, SqliteStore, paths};
 
 use crate::Cli;
 
@@ -116,7 +117,7 @@ pub fn run(
         },
     };
 
-    let ctx = empty_bundle(config);
+    let ctx = assemble_context(cli, config, &text);
     let req = PromptBuilder.build(&intent, &ctx, &NoopRedactor);
     let backend = MockBackend::new();
     let started = Instant::now();
@@ -197,6 +198,25 @@ pub fn run(
         warnings,
         raw: resp.raw,
     })
+}
+
+fn assemble_context(cli: &Cli, config: &Config, text: &str) -> ContextBundle {
+    let base = empty_bundle(config);
+    if !config.memory.enabled || cli.no_memory {
+        return base;
+    }
+    let Ok(store) = open_store(config) else {
+        return base;
+    };
+    let budget = ContextBudget {
+        recent: config.memory.context.recent,
+        relevance: config.memory.context.relevance,
+        shell: config.memory.context.shell,
+        max_tokens: config.memory.context.max_tokens,
+    };
+    ContextBuilder::new(&SecretRedactor)
+        .build(text, &base.env, &base.profile, &store, budget, None)
+        .unwrap_or(base)
 }
 
 fn persist_translation(config: &Config, rec: &Interaction) -> shx_memory::Result<i64> {
