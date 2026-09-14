@@ -207,6 +207,10 @@ seed with 20 intents.
 **Acceptance:** skipped by default in CI; documented run instructions; a live run
 prints a small results table.
 
+**Notes:** `SHX_LIVE=1 cargo test -p shx-llm --test live -- --ignored --nocapture`.
+Fixtures: `tools/eval/fixtures/translate.json`. Run instructions in
+[08-TESTING.md](../08-TESTING.md) § T5.
+
 ### T-301 — Risk classifier + rule table · Safety · L
 
 **Deps:** T-003 · ∥

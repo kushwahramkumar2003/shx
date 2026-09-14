@@ -46,7 +46,7 @@ Targeted runs while developing:
 cargo test -p shx-core          # pure logic, instant
 cargo test --workspace          # everything
 cargo run -p shx -- --offline "run pg on 7000"
-SHX_LIVE=1 cargo test --test live -- --ignored   # needs a real model
+SHX_LIVE=1 cargo test -p shx-llm --test live -- --ignored --nocapture  # T5; needs a real model
 ```
 
 ## Hard rules (PRs violating these are closed, not debated)

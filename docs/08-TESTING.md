@@ -20,6 +20,23 @@ the tiers, the corpora, and the CI gate.
 Rule: **CI runs T1–T4 on every push; T5 is manual/nightly; T6 runs on prompt or
 model changes.**
 
+### T5 Live harness (opt-in)
+
+`tests/live/` talks to a real Ollama. It is `#[ignore]`d and additionally gated
+on `SHX_LIVE=1`, so `cargo xtask ci` / `cargo test --workspace` never hits the
+network. Offline tests in the same file still run: they assert the 20-intent
+fixture seed parses.
+
+```sh
+# Needs a running Ollama with the configured model (default qwen3:14b).
+# --nocapture prints the results table to the terminal.
+SHX_LIVE=1 cargo test -p shx-llm --test live -- --ignored --nocapture
+```
+
+Optional env: `SHX_LIVE_MODEL`, `SHX_LIVE_URL` (default `http://127.0.0.1:11434`),
+`SHX_LIVE_TIMEOUT_MS` (default `60000`). The harness translates only — it never
+executes the returned commands. Quality rates (exact/regex/acceptable) are T6.
+
 ## 2. The corpora (the real value)
 
 ### `tests/corpus/risk_danger.txt` (T-SAFE-1)
@@ -52,11 +69,13 @@ Pairs of `raw → expected` covering every pattern in
 through untouched (a UUID, a git SHA, a long-but-not-secret string, a URL with no
 credentials). Both directions matter: over-redaction breaks good context.
 
-### `tests/corpus/translate.json` (T-EVAL)
+### `tools/eval/fixtures/translate.json` (T-EVAL)
 
-`{ intent, env, profile, expected_command_regex_or_set }` fixture pairs used by
-T5/T6 to score a model/prompt change. Starts with the top ~50 commands from the
-author's actual "I had to look this up" list, and grows from `shx history`.
+`{ intent, env, profile, expected_command }` fixture pairs used by T5/T6 to
+score a model/prompt change. `expected_command` is a glob string (`*` wildcard)
+or a set of alternatives (OR). Seeded with 20 intents (T-104); T6 grows it
+toward the top ~50 commands from the author's "I had to look this up" list, and
+from `shx history`. The alias `expected_command_regex_or_set` is also accepted.
 
 ## 3. Tests that guard invariants (must never be deleted)
 

@@ -1,0 +1,142 @@
+[
+  {
+    "id": "docker-pg-7000",
+    "intent": "run postgres in docker mapping 7000",
+    "env": { "os": "macos", "shell": "zsh", "cwd": "/tmp" },
+    "profile": { "name": "default", "ports": [7000], "prefer_docker": true, "notes": "" },
+    "expected_command": "docker run*7000*postgres*"
+  },
+  {
+    "id": "kill-port-3000",
+    "intent": "kill whatever is on port 3000",
+    "env": { "os": "macos", "shell": "zsh", "cwd": "/tmp" },
+    "profile": { "name": "default", "ports": [3000], "prefer_docker": false, "notes": "" },
+    "expected_command": ["lsof*3000*", "kill*3000*", "fuser*3000*", "ss*3000*"]
+  },
+  {
+    "id": "ls-hidden",
+    "intent": "list all files including hidden ones",
+    "env": { "os": "macos", "shell": "zsh", "cwd": "/tmp" },
+    "profile": { "name": "default", "ports": [], "prefer_docker": false, "notes": "" },
+    "expected_command": ["ls -la", "ls -al", "ls -a", "eza -la", "eza -al"]
+  },
+  {
+    "id": "du-here",
+    "intent": "show disk usage of the current directory",
+    "env": { "os": "macos", "shell": "zsh", "cwd": "/tmp" },
+    "profile": { "name": "default", "ports": [], "prefer_docker": false, "notes": "" },
+    "expected_command": "du"
+  },
+  {
+    "id": "git-undo-soft",
+    "intent": "undo the last git commit but keep the changes",
+    "env": { "os": "macos", "shell": "zsh", "cwd": "/tmp" },
+    "profile": { "name": "default", "ports": [], "prefer_docker": false, "notes": "" },
+    "expected_command": ["git reset --soft HEAD~1", "git reset --soft HEAD^", "git reset --soft 'HEAD^'"]
+  },
+  {
+    "id": "git-new-branch",
+    "intent": "create and switch to a new branch named feat/foo",
+    "env": { "os": "macos", "shell": "zsh", "cwd": "/tmp" },
+    "profile": { "name": "default", "ports": [], "prefer_docker": false, "notes": "" },
+    "expected_command": ["git checkout -b feat/foo", "git switch -c feat/foo"]
+  },
+  {
+    "id": "listening-ports",
+    "intent": "show listening tcp ports",
+    "env": { "os": "macos", "shell": "zsh", "cwd": "/tmp" },
+    "profile": { "name": "default", "ports": [3000, 7000], "prefer_docker": false, "notes": "" },
+    "expected_command": ["lsof -iTCP", "lsof -i -P", "lsof -nP", "netstat", "ss -t"]
+  },
+  {
+    "id": "docker-ps",
+    "intent": "list running docker containers",
+    "env": { "os": "macos", "shell": "zsh", "cwd": "/tmp" },
+    "profile": { "name": "default", "ports": [], "prefer_docker": true, "notes": "" },
+    "expected_command": "docker ps"
+  },
+  {
+    "id": "docker-rm-stopped",
+    "intent": "remove stopped docker containers",
+    "env": { "os": "macos", "shell": "zsh", "cwd": "/tmp" },
+    "profile": { "name": "default", "ports": [], "prefer_docker": true, "notes": "" },
+    "expected_command": ["docker container prune", "docker rm"]
+  },
+  {
+    "id": "tail-app-log",
+    "intent": "show the last 100 lines of app.log",
+    "env": { "os": "macos", "shell": "zsh", "cwd": "/tmp" },
+    "profile": { "name": "default", "ports": [], "prefer_docker": false, "notes": "" },
+    "expected_command": ["tail -n 100 app.log", "tail -100 app.log"]
+  },
+  {
+    "id": "pgrep-node",
+    "intent": "find processes named node",
+    "env": { "os": "macos", "shell": "zsh", "cwd": "/tmp" },
+    "profile": { "name": "default", "ports": [], "prefer_docker": false, "notes": "" },
+    "expected_command": ["pgrep", "ps aux", "ps -ef"]
+  },
+  {
+    "id": "tar-czf",
+    "intent": "compress the current directory to archive.tar.gz",
+    "env": { "os": "macos", "shell": "zsh", "cwd": "/tmp" },
+    "profile": { "name": "default", "ports": [], "prefer_docker": false, "notes": "" },
+    "expected_command": ["tar -czf archive.tar.gz", "tar czf archive.tar.gz", "tar -czf ./archive.tar.gz"]
+  },
+  {
+    "id": "tar-xzf",
+    "intent": "extract archive.tar.gz here",
+    "env": { "os": "macos", "shell": "zsh", "cwd": "/tmp" },
+    "profile": { "name": "default", "ports": [], "prefer_docker": false, "notes": "" },
+    "expected_command": ["tar -xzf archive.tar.gz", "tar xzf archive.tar.gz"]
+  },
+  {
+    "id": "chmod-x",
+    "intent": "make script.sh executable",
+    "env": { "os": "macos", "shell": "zsh", "cwd": "/tmp" },
+    "profile": { "name": "default", "ports": [], "prefer_docker": false, "notes": "" },
+    "expected_command": ["chmod +x script.sh", "chmod 755 script.sh"]
+  },
+  {
+    "id": "git-status",
+    "intent": "show current git status",
+    "env": { "os": "macos", "shell": "zsh", "cwd": "/tmp" },
+    "profile": { "name": "default", "ports": [], "prefer_docker": false, "notes": "" },
+    "expected_command": "git status"
+  },
+  {
+    "id": "rg-todo",
+    "intent": "recursively search the tree for TODO",
+    "env": { "os": "macos", "shell": "zsh", "cwd": "/tmp" },
+    "profile": { "name": "default", "ports": [], "prefer_docker": false, "notes": "" },
+    "expected_command": ["rg TODO", "grep -R TODO", "grep -r TODO", "git grep TODO"]
+  },
+  {
+    "id": "who-8080",
+    "intent": "which process is using port 8080",
+    "env": { "os": "macos", "shell": "zsh", "cwd": "/tmp" },
+    "profile": { "name": "default", "ports": [8080], "prefer_docker": false, "notes": "" },
+    "expected_command": ["lsof*8080*", "ss*8080*", "netstat*8080*", "fuser*8080*"]
+  },
+  {
+    "id": "docker-volume-prune",
+    "intent": "prune unused docker volumes",
+    "env": { "os": "macos", "shell": "zsh", "cwd": "/tmp" },
+    "profile": { "name": "default", "ports": [], "prefer_docker": true, "notes": "" },
+    "expected_command": "docker volume prune"
+  },
+  {
+    "id": "tmux-attach",
+    "intent": "reattach to my tmux session",
+    "env": { "os": "macos", "shell": "zsh", "cwd": "/tmp" },
+    "profile": { "name": "default", "ports": [], "prefer_docker": false, "notes": "" },
+    "expected_command": ["tmux attach", "tmux a"]
+  },
+  {
+    "id": "ollama-pull",
+    "intent": "pull the ollama model qwen3:14b",
+    "env": { "os": "macos", "shell": "zsh", "cwd": "/tmp" },
+    "profile": { "name": "default", "ports": [], "prefer_docker": false, "notes": "" },
+    "expected_command": "ollama pull qwen3:14b"
+  }
+]

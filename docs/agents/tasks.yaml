@@ -218,8 +218,11 @@ tasks:
     deliverables: [tests/live/, tools/eval/fixtures (20 intents)]
     acceptance:
       - skipped by default in CI; documented run instructions; prints results table
-    status: pending
-    owner: null
+    notes: verify=cargo xtask ci green; fixtures_seed_has_at_least_20_intents, fixture_cases_have_intent_env_profile_and_expected, glob_match_requires_parts_in_order; live_harness ignored unless SHX_LIVE=1 --ignored --nocapture. pr_url: local-only (no remote)
+    status: completed
+    owner: grok-cli
+    branch: feat/t-104-live-harness
+    pr_url: local-only (no remote)
 
   - id: T-301
     title: Risk classifier + rule table
