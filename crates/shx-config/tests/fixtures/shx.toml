@@ -1,0 +1,48 @@
+# fixture used by T-004 unit tests — every key from docs/05-CLI-SPEC.md §4
+
+[backend]
+mode = "local-first"
+escalate_below_confidence = 0.6
+local_slow_ms = 8000
+complexity_skip_local = false
+
+[backend.local]
+kind = "ollama"
+base_url = "http://127.0.0.1:11434"
+model = "qwen3:14b"
+keep_alive = "30m"
+num_ctx = 4096
+timeout_ms = 8000
+
+[backend.cloud]
+kind = "anthropic"
+model = "claude-sonnet-4-5"
+api_key_env = "ANTHROPIC_API_KEY"
+timeout_ms = 20000
+
+[memory]
+enabled = true
+path = ""
+retention_days = 180
+context = { recent = 10, relevance = 5, shell = 5, max_tokens = 1500 }
+ingest_shell_history = false
+redact_secrets = true
+
+[safety]
+warn_on_risk = true
+exit_on_risk = false
+refuse_multi_command_on_risk = true
+
+[context]
+os = "auto"
+shell = "auto"
+in_container = "auto"
+prefer_docker = true
+ports = [3000, 5432, 7000]
+notes = ""
+
+[ui]
+color = "auto"
+timing = false
+update_check = "never"
+candidates = 1

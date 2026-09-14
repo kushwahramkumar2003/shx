@@ -72,8 +72,7 @@ clippy warning fails CI; a deliberately-introduced typo fails CI.
 
 **Deps:** T-001
 
-**Deliverables:** `shx-core/src/{types.rs,backend.rs? no→shx-llm}` — precisely:
-`shx-core/src/types.rs` (`Intent`, `ContextBundle`, `Candidate`,
+**Deliverables:** `shx-core/src/types.rs` (`Intent`, `ContextBundle`, `Candidate`,
 `RiskAssessment`, `RiskLevel`, `TranslateRequest`, `TranslateResponse`,
 `Usage`, `Interaction`, `Scope`), `shx-llm/src/backend.rs` (`Backend`,
 `Capabilities`, `Health`, `BackendError`, `ErrorKind`),

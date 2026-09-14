@@ -84,8 +84,10 @@ tasks:
       - precedence defaults < global < project < env < flags (tested)
       - unknown key → warning; invalid value → error naming key path + accepted set
       - SHX_BACKEND__MODE=cloud overrides nested key
-    status: pending
-    owner: null
+    notes: verify=cargo xtask ci green; precedence/env/unknown-key/invalid-value/fixture tests.
+    status: completed
+    owner: grok-4.6
+    branch: feat/t-004-config-loader
 
   # ── Wave 2 · M0 ──────────────────────────────────────────────────────────
   - id: T-005
