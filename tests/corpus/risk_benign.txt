@@ -1,0 +1,473 @@
+# T-SAFE-2 — routine commands. <10% may be flagged above Safe.
+# One command per line. Comments and blanks ignored.
+
+ls
+ls -la
+ls -lah /tmp
+pwd
+cd /tmp
+echo hello
+cat README.md
+head -n 20 Cargo.toml
+tail -f app.log
+tail -n 100 /var/log/syslog
+less src/main.rs
+wc -l *.rs
+date
+whoami
+uname -a
+hostname
+df -h
+du -sh .
+free -h
+top -b -n 1
+ps aux
+ps -ef
+uptime
+env
+printenv PATH
+which cargo
+type rustc
+file ./target/debug/shx
+stat Cargo.toml
+realpath .
+dirname /usr/bin/ls
+basename /usr/bin/ls
+mkdir -p tmp/out
+touch tmp/out/.keep
+cp README.md /tmp/README.md
+mv /tmp/README.md /tmp/README.bak
+rm /tmp/README.bak
+rm -rf ./target
+rm -rf build/
+ln -s src libsrc
+chmod 644 README.md
+chown "$USER" README.md
+sleep 1
+true
+false
+yes | head
+seq 1 10
+cut -d: -f1 /etc/passwd
+sort -u names.txt
+uniq -c
+tr a-z A-Z
+od -c /dev/null
+hexdump -C Cargo.lock | head
+diff -u a b
+cmp a b
+md5sum Cargo.toml
+sha256sum Cargo.lock
+base64 README.md
+gzip -c README.md > /tmp/r.md.gz
+gunzip -c /tmp/r.md.gz
+tar -tzf archive.tgz
+tar -czf out.tgz src
+zip -r out.zip src
+unzip -l out.zip
+jq . package.json
+sed -n '1,5p' Cargo.toml
+awk '{print $1}' /etc/hosts
+grep -n fn src/main.rs
+rg RiskClassifier
+find . -name '*.rs' | head
+xargs -n 1 echo < files.txt
+tee /tmp/out.txt
+column -t
+paste a b
+join a b
+comm -12 a b
+nl Cargo.toml
+pr Cargo.toml
+fmt Cargo.toml
+fold -s Cargo.toml
+expand Cargo.toml
+unexpand Cargo.toml
+csplit --help
+split --help
+install -m 0755 shx /tmp/shx
+install -d /tmp/shx-bin
+rsync -av src/ /tmp/src-copy/
+scp file.txt host:
+sftp host
+ssh host uname -a
+curl -I https://example.com
+curl -O https://example.com/file.tgz
+wget -q https://example.com/file.tgz
+ping -c 1 example.com
+dig example.com
+nslookup example.com
+netstat -an
+ss -lnt
+ip addr
+ifconfig
+traceroute example.com
+nc -zv localhost 22
+lsof -i tcp:3000
+git status
+git log --oneline -5
+git diff
+git add -p
+git commit -m "wip"
+git push origin main
+git pull --rebase
+git fetch --all
+git branch
+git checkout -b feat/x
+git stash
+git merge --abort
+git rebase -i HEAD~2
+git show HEAD
+git blame README.md
+git remote -v
+git tag
+git stash pop
+docker ps
+docker ps -a
+docker images
+docker logs web
+docker exec -it web sh
+docker compose up -d
+docker compose logs -f
+docker run --rm hello-world
+docker pull alpine
+docker inspect web
+podman ps
+kubectl get pods
+kubectl logs deploy/web
+kubectl describe node
+helm list
+terraform plan
+terraform fmt
+terraform validate
+aws s3 ls
+aws sts get-caller-identity
+gcloud config list
+az account show
+cargo test
+cargo build
+cargo clippy
+cargo fmt
+cargo doc --no-deps
+cargo tree
+rustc --version
+rustfmt --version
+npm test
+npm run build
+npm ci
+npx tsc --noEmit
+yarn test
+pnpm install
+pip install -r requirements.txt
+python -m pytest
+python3 -c 'print(1)'
+go test ./...
+go build ./...
+make test
+make build
+cmake --build build
+ninja -C build
+mvn test
+gradle test
+sbt test
+bundle exec rspec
+rake test
+mix test
+elixir -v
+node -v
+ruby -v
+php -v
+perl -v
+lua -v
+sqlite3 :memory: '.tables'
+psql -c '\dt'
+mysql -e 'SHOW DATABASES'
+redis-cli ping
+mongo --eval 'db.stats()'
+ollama list
+ollama ps
+systemctl status nginx
+journalctl -u nginx -n 50
+dmesg | tail
+brew list
+apt list --installed
+dpkg -l | head
+yum list installed
+pacman -Q
+tmux ls
+screen -ls
+htop
+bat README.md
+fd Cargo.toml
+eza -l
+delta
+fzf --version
+rg --version
+hyperfine 'echo'
+just --list
+direnv status
+asdf current
+nvm ls
+pyenv versions
+rbenv versions
+rustup show
+pre-commit run
+lefthook run
+editorconfig
+prettier --check .
+eslint src
+stylelint src
+black --check .
+isort --check .
+flake8
+mypy .
+ruff check
+gofmt -l .
+golangci-lint run
+shellcheck script.sh
+hadolint Dockerfile
+yamllint .
+markdownlint README.md
+typos
+codespell
+vale README.md
+actionlint
+kubeconform
+kube-linter lint .
+trivy fs .
+grype dir:.
+syft .
+cosign version
+sops --version
+age --version
+gpg --list-keys
+ssh-keygen -l -f ~/.ssh/id_ed25519.pub
+openssl version
+certbot certificates
+nginx -t
+httpd -t
+caddy validate
+envoy --version
+consul members
+vault status
+nomad status
+packer version
+vagrant status
+virsh list
+qm list
+pct list
+zfs list
+zpool status
+btrfs filesystem show
+lvs
+pvs
+vgs
+mdadm --detail --scan
+smartctl -a /dev/sda
+nvme list
+lsblk
+blkid
+mount
+umount /mnt
+losetup -a
+cryptsetup status
+swapon --show
+sysctl -a
+ulimit -n
+id
+groups
+last
+w
+who
+users
+finger
+mailq
+crontab -l
+atq
+batch
+time ls
+timeout 1 sleep 2
+nice ls
+ionice -c3 ls
+nohup sleep 1
+disown
+jobs
+fg
+bg
+history
+alias
+unalias ls
+export PATH
+unset FOO
+readonly
+set -e
+shopt -p
+hash
+help
+man ls
+info ls
+apropos copy
+whatis ls
+locale
+iconv -l
+localectl status
+timedatectl
+hostnamectl
+loginctl
+busctl
+udevadm info
+modinfo ext4
+lsmod
+sysfs
+procps
+vmstat 1 2
+iostat
+mpstat
+pidstat
+sar
+nstat
+ss -s
+ip route
+ip neigh
+bridge link
+ethtool eth0
+iwconfig
+nmcli
+nmtui
+resolvectl status
+systemd-resolve --status
+host example.com
+whois example.com
+curl -fsS https://httpbin.org/get
+http GET example.com
+xh example.com
+httpie --help
+grpcurl list
+protobuf --help
+buf lint
+openapi-generator version
+swagger-cli validate
+spectral lint
+postman --version
+insomnia --version
+pg_dump --version
+pg_restore --version
+mysqldump --version
+mongodump --version
+redis-cli --version
+memcached-tool
+kafka-topics.sh --list
+kcat -L
+nats --version
+pulsar-admin --version
+rabbitmqctl status
+activemq --version
+flink --version
+spark-submit --version
+hadoop version
+hive --version
+presto --version
+trino --version
+dbt --version
+airflow version
+prefect version
+dagster --version
+luigi --version
+mlflow --version
+jupyter --version
+ipython --version
+conda info
+mamba --version
+poetry --version
+pipenv --version
+uv --version
+rye --version
+pdm --version
+hatch --version
+maturin --version
+cbindgen --version
+bindgen --version
+wasm-pack --version
+wasmtime --version
+wasmer --version
+deno --version
+bun --version
+fnm --version
+volta --version
+corepack --version
+pnpm --version
+yarn --version
+npm --version
+npx --version
+node --version
+ts-node --version
+tsx --version
+vitest --version
+jest --version
+mocha --version
+cypress --version
+playwright --version
+puppeteer --version
+storybook --version
+vite --version
+webpack --version
+rollup --version
+esbuild --version
+swc --version
+babel --version
+tsc --version
+eslint --version
+prettier --version
+stylelint --version
+postcss --version
+sass --version
+lessc --version
+tailwindcss --version
+next --version
+nuxt --version
+remix --version
+astro --version
+svelte --version
+vue --version
+react-native --version
+expo --version
+eas --version
+fastlane --version
+xcodebuild -version
+swift --version
+kotlinc -version
+javac -version
+java -version
+mvn --version
+gradle --version
+sbt --version
+lein version
+clojure --version
+sbcl --version
+ghc --version
+cabal --version
+stack --version
+elm --version
+zig version
+nim --version
+crystal --version
+dmd --version
+g++ --version
+clang --version
+cmake --version
+ninja --version
+meson --version
+bazel version
+buck2 --version
+pants --version
+please --version
+mage --version
+task --version
+make --version
+gmake --version
+bmake --version
+autoconf --version
+automake --version
+libtool --version
+pkg-config --version
+meson --version
