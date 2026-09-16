@@ -792,3 +792,70 @@ fn t_405_local_cloud_flags_table_test() {
         "--cloud must NEVER fall back to local: {stderr:?}"
     );
 }
+
+/// T-501: Project scoping in CLI: git root discovery, distinct project_ids, and --project override.
+#[test]
+fn t_501_cli_project_scoping_and_override() {
+    let home = unique_home();
+    let repo_a = home.join("repo_a");
+    let repo_b = home.join("repo_b");
+    fs::create_dir_all(repo_a.join(".git")).expect("repo a git");
+    fs::create_dir_all(repo_b.join(".git")).expect("repo b git");
+
+    // 1. Outside git repo: memory.project_id is null
+    let assert = shx_in(&home)
+        .args(["--offline", "--json", "run pg on 7000"])
+        .assert()
+        .success();
+    let stdout = String::from_utf8_lossy(&assert.get_output().stdout);
+    let v: serde_json::Value = serde_json::from_str(stdout.trim()).expect("json");
+    assert!(
+        v["memory"]["project_id"].is_null(),
+        "outside repo project_id should be null: {v:?}"
+    );
+
+    // 2. Inside repo A: memory.project_id is a 16-hex string
+    let assert = shx_in(&repo_a)
+        .args(["--offline", "--json", "run pg on 7000"])
+        .assert()
+        .success();
+    let stdout = String::from_utf8_lossy(&assert.get_output().stdout);
+    let v_a: serde_json::Value = serde_json::from_str(stdout.trim()).expect("json");
+    let pid_a = v_a["memory"]["project_id"].as_str().expect("pid_a string");
+    assert_eq!(pid_a.len(), 16);
+
+    // 3. Inside repo B: memory.project_id is a distinct 16-hex string
+    let assert = shx_in(&repo_b)
+        .args(["--offline", "--json", "run pg on 7000"])
+        .assert()
+        .success();
+    let stdout = String::from_utf8_lossy(&assert.get_output().stdout);
+    let v_b: serde_json::Value = serde_json::from_str(stdout.trim()).expect("json");
+    let pid_b = v_b["memory"]["project_id"].as_str().expect("pid_b string");
+    assert_eq!(pid_b.len(), 16);
+    assert_ne!(
+        pid_a, pid_b,
+        "two different repos produce distinct project_ids"
+    );
+
+    // 4. In repo A, but with --project pointing to repo B: project_id becomes pid_b
+    let assert = shx_in(&repo_a)
+        .args([
+            "--project",
+            repo_b.to_str().unwrap(),
+            "--offline",
+            "--json",
+            "run pg on 7000",
+        ])
+        .assert()
+        .success();
+    let stdout = String::from_utf8_lossy(&assert.get_output().stdout);
+    let v_override: serde_json::Value = serde_json::from_str(stdout.trim()).expect("json");
+    let pid_override = v_override["memory"]["project_id"]
+        .as_str()
+        .expect("override string");
+    assert_eq!(
+        pid_override, pid_b,
+        "--project override reflects target repo's project_id"
+    );
+}

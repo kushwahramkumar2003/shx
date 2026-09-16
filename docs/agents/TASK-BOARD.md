@@ -407,6 +407,8 @@ back to local.
 **Acceptance:** two different repos produce distinct `project_id`s and disjoint
 project-scoped recall; detection works inside/outside a container (mocked FS).
 
+**Status:** completed (local-only). Unblocks **T-502**, **T-503**.
+
 ### T-502 — Fast-path cache · Memory · M
 
 **Deps:** T-203, T-301

@@ -46,6 +46,8 @@ pub struct TranslateOut {
     pub refused: Option<String>,
     /// Local backend id if the cloud answered after an escalation.
     pub escalated_from: Option<String>,
+    /// Project identifier derived from git root (hash), if any.
+    pub project_id: Option<String>,
 }
 
 /// Explainability payload. Never printed on stdout.
@@ -143,6 +145,7 @@ pub fn run(
             why: WhyInfo::default(),
             refused: Some(reason.to_string()),
             escalated_from: None,
+            project_id: None,
         });
     }
 
@@ -168,7 +171,7 @@ pub fn run(
         },
     };
 
-    let (ctx, mut why) = assemble_context(cli, config, &text);
+    let (ctx, mut why, project_id) = assemble_context(cli, config, &text);
     let req = PromptBuilder.build(&intent, &ctx, &SecretRedactor);
     let router = build_router(cli, config);
     let started = Instant::now();
@@ -229,7 +232,7 @@ pub fn run(
                 .map(|d| d.as_millis() as i64)
                 .unwrap_or(0),
             session_id: "cli".into(),
-            project_id: None,
+            project_id: project_id.clone(),
             cwd: env::current_dir()
                 .map(|p| p.display().to_string())
                 .unwrap_or_else(|_| ".".into()),
@@ -277,6 +280,7 @@ pub fn run(
         why,
         refused: None,
         escalated_from,
+        project_id,
     })
 }
 
@@ -446,8 +450,12 @@ fn risk_word(level: RiskLevel) -> &'static str {
     }
 }
 
-fn assemble_context(cli: &Cli, config: &Config, text: &str) -> (ContextBundle, WhyInfo) {
-    let base = empty_bundle(config);
+fn assemble_context(
+    cli: &Cli,
+    config: &Config,
+    text: &str,
+) -> (ContextBundle, WhyInfo, Option<String>) {
+    let (base, project_id) = empty_bundle(config, cli);
     let mut why = WhyInfo {
         profile_name: base.profile.name.clone(),
         ports: base.profile.ports.clone(),
@@ -456,10 +464,10 @@ fn assemble_context(cli: &Cli, config: &Config, text: &str) -> (ContextBundle, W
         ..WhyInfo::default()
     };
     if !config.memory.enabled || cli.no_memory {
-        return (base, why);
+        return (base, why, project_id);
     }
     let Ok(store) = open_store(config) else {
-        return (base, why);
+        return (base, why, project_id);
     };
     let budget = ContextBudget {
         recent: config.memory.context.recent,
@@ -473,7 +481,7 @@ fn assemble_context(cli: &Cli, config: &Config, text: &str) -> (ContextBundle, W
         &base.profile,
         &store,
         budget,
-        None,
+        project_id.as_deref(),
     ) {
         Ok((bundle, truncated, tokens)) => {
             why.memory_used = true;
@@ -490,9 +498,9 @@ fn assemble_context(cli: &Cli, config: &Config, text: &str) -> (ContextBundle, W
                 .map(|v| (v.term.clone(), v.expansion.clone()))
                 .collect();
             why.snippets = bundle.snippets.iter().map(|s| s.name.clone()).collect();
-            (bundle, why)
+            (bundle, why, project_id)
         }
-        Err(_) => (base, why),
+        Err(_) => (base, why, project_id),
     }
 }
 
@@ -548,7 +556,7 @@ fn resolve_intent(cli: &Cli) -> Result<String, PipelineError> {
     Ok(line.to_string())
 }
 
-fn empty_bundle(cfg: &Config) -> ContextBundle {
+fn empty_bundle(cfg: &Config, cli: &Cli) -> (ContextBundle, Option<String>) {
     let os = if cfg.context.os == "auto" {
         match env::consts::OS {
             "macos" | "linux" | "windows" => env::consts::OS.to_string(),
@@ -569,28 +577,36 @@ fn empty_bundle(cfg: &Config) -> ContextBundle {
     } else {
         cfg.context.shell.clone()
     };
-    let cwd = env::current_dir()
-        .map(|p| p.display().to_string())
-        .unwrap_or_else(|_| ".".into());
-    ContextBundle {
-        env: EnvInfo {
-            os,
-            shell,
-            cwd,
-            git_root: None,
-            in_container: cfg.context.in_container == "true",
+    let cwd_buf = env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
+    let cwd = cwd_buf.display().to_string();
+
+    let (git_root_buf, project_id) =
+        shx_memory::scope::resolve_project_scope(cli.project.as_deref(), &cwd_buf);
+    let git_root = git_root_buf.map(|p| p.display().to_string());
+    let in_container = shx_memory::scope::detect_in_container(&cfg.context.in_container);
+
+    (
+        ContextBundle {
+            env: EnvInfo {
+                os,
+                shell,
+                cwd,
+                git_root,
+                in_container,
+            },
+            profile: Profile {
+                name: "default".into(),
+                ports: cfg.context.ports.clone(),
+                prefer_docker: cfg.context.prefer_docker,
+                notes: cfg.context.notes.clone(),
+            },
+            history: vec![],
+            vocabulary: vec![],
+            snippets: vec![],
+            shell: vec![],
         },
-        profile: Profile {
-            name: "default".into(),
-            ports: cfg.context.ports.clone(),
-            prefer_docker: cfg.context.prefer_docker,
-            notes: cfg.context.notes.clone(),
-        },
-        history: vec![],
-        vocabulary: vec![],
-        snippets: vec![],
-        shell: vec![],
-    }
+        project_id,
+    )
 }
 
 #[cfg(test)]

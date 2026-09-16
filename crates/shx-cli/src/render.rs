@@ -220,7 +220,7 @@ fn json_out<'a>(out: &'a TranslateOut, exit_on_risk: bool) -> JsonOut<'a> {
         memory: JsonMemory {
             used: out.why.memory_used,
             entries: out.why.history.len() as u32,
-            project_id: None,
+            project_id: out.project_id.clone(),
             from_cache: out.from_cache,
         },
         latency_ms: out.latency_ms,
@@ -333,6 +333,7 @@ mod tests {
             },
             refused: None,
             escalated_from: None,
+            project_id: None,
         };
         assert_eq!(format_why(&out), include_str!("../tests/golden/why.txt"));
     }

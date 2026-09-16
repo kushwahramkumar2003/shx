@@ -9,11 +9,15 @@ pub mod memory;
 pub mod paths;
 pub mod record;
 pub mod retrieve;
+pub mod scope;
 pub mod sqlite;
 pub mod store;
 pub mod vocab;
 
 pub use memory::InMemoryStore;
 pub use retrieve::{ContextBudget, ContextBuilder, memory_tokens};
+pub use scope::{
+    detect_in_container, find_git_root, recall_project_history, resolve_project_scope,
+};
 pub use sqlite::SqliteStore;
 pub use store::{MemoryError, MemoryStore, Result};

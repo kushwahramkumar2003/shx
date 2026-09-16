@@ -52,6 +52,7 @@ pub fn run(cli: &Cli) -> i32 {
             grep.as_deref(),
             *json,
             *jsonl,
+            cli,
         ),
         Some(HistoryCmd::Show {
             id,
@@ -74,9 +75,11 @@ pub fn run(cli: &Cli) -> i32 {
     }
 }
 
-fn scope(project: bool, _global: bool) -> Scope {
+fn scope(project: bool, _global: bool, cli: &Cli) -> Scope {
     if project {
-        Scope::Project { id: None }
+        let cwd = std::env::current_dir().unwrap_or_else(|_| std::path::PathBuf::from("."));
+        let (_, pid) = shx_memory::scope::resolve_project_scope(cli.project.as_deref(), &cwd);
+        Scope::Project { id: pid }
     } else {
         Scope::Tool
     }
@@ -88,8 +91,9 @@ fn fetch(
     project: bool,
     global: bool,
     grep: Option<&str>,
+    cli: &Cli,
 ) -> Result<Vec<Interaction>, String> {
-    let sc = scope(project, global);
+    let sc = scope(project, global, cli);
     if let Some(q) = grep {
         store.search(q, limit, sc).map_err(|e| e.to_string())
     } else {
@@ -124,14 +128,16 @@ fn list(
     grep: Option<&str>,
     json: bool,
     jsonl: bool,
+    cli: &Cli,
 ) -> i32 {
-    let rows = match fetch(store, limit, project, global, grep).and_then(|r| filter_risk(r, risk)) {
-        Ok(r) => r,
-        Err(e) => {
-            eprintln!("shx: {e}");
-            return EXIT_USAGE;
-        }
-    };
+    let rows =
+        match fetch(store, limit, project, global, grep, cli).and_then(|r| filter_risk(r, risk)) {
+            Ok(r) => r,
+            Err(e) => {
+                eprintln!("shx: {e}");
+                return EXIT_USAGE;
+            }
+        };
     emit(&rows, json, jsonl, None)
 }
 
