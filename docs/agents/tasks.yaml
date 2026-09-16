@@ -515,8 +515,11 @@ tasks:
     acceptance:
       - T-MEM-4 same intent, different cwd/project → no hit
       - cache-hit path < 5 ms (bench); never stores danger results; from_cache surfaced
-    status: pending
-    owner: null
+    status: completed
+    owner: antigravity
+    branch: feat/t-502-fast-path-cache
+    notes: "verify=cargo xtask ci green; t_cache.rs (T-MEM-4, bench < 5ms, eligibility, danger rejection), t_502_cli_fast_path_cache_hit_and_from_cache_surfaced."
+    pr_url: local-only (no remote)
 
   - id: T-503
     title: Feedback loop + weights/decay

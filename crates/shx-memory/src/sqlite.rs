@@ -149,6 +149,43 @@ impl SqliteStore {
         Ok(n as u64)
     }
 
+    /// Look up eligible cached command matching normalized intent and context fingerprint.
+    pub fn cache_lookup(
+        &self,
+        query: &crate::cache::CacheQuery<'_>,
+    ) -> Result<Option<crate::cache::CacheHit>> {
+        let conn = self.lock()?;
+        let normalized_cwd = shx_core::env::normalize_git_root(query.cwd);
+        let mut stmt = conn.prepare(
+            "SELECT id, ts, session_id, project_id, cwd, os, shell, input_nl, output_cmd,
+                    explanation, backend, model, confidence, latency_ms, risk_level,
+                    risk_notes, from_cache, accepted, executed, tags
+             FROM interactions
+             WHERE (project_id = ?1 OR (?1 IS NULL AND project_id IS NULL))
+               AND (cwd = ?2 OR cwd = ?3)
+               AND os = ?4
+               AND shell = ?5
+               AND risk_level = 'safe'
+             ORDER BY ts DESC, id DESC
+             LIMIT 100",
+        )?;
+        let rows = stmt.query_map(
+            params![
+                query.project_id,
+                query.cwd,
+                normalized_cwd,
+                query.os,
+                query.shell,
+            ],
+            map_interaction,
+        )?;
+        let mut list = Vec::new();
+        for r in rows {
+            list.push(r?);
+        }
+        Ok(crate::cache::find_cache_hit_in_interactions(&list, query))
+    }
+
     /// Prune using an explicit timestamp (FakeClock).
     pub fn prune_at(&self, policy: &PrunePolicy, now: i64) -> Result<PruneReport> {
         let conn = self.lock()?;

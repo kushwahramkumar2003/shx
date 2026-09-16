@@ -15,7 +15,7 @@ use shx_llm::{
     MockBackend, OllamaBackend, OllamaSettings, OpenAiCompatBackend, OpenAiCompatSettings,
     RouteMode, RouterConfig,
 };
-use shx_memory::{ContextBudget, ContextBuilder, MemoryStore, SqliteStore, paths};
+use shx_memory::{CacheQuery, ContextBudget, ContextBuilder, MemoryStore, SqliteStore, paths};
 
 use crate::Cli;
 
@@ -172,6 +172,83 @@ pub fn run(
     };
 
     let (ctx, mut why, project_id) = assemble_context(cli, config, &text);
+
+    // Fast-path cache check (Step 3 in docs/02-ARCHITECTURE.md §4)
+    if config.memory.enabled && !cli.no_memory && count == 1 {
+        let cache_started = Instant::now();
+        if let Ok(store) = open_store(config) {
+            let query = CacheQuery {
+                intent: &text,
+                os: &ctx.env.os,
+                shell: &ctx.env.shell,
+                cwd: &ctx.env.cwd,
+                project_id: project_id.as_deref(),
+                allow_mock: cli.offline || config.backend.local.kind == "mock",
+                force_local: cli.local,
+                force_cloud: cli.cloud,
+            };
+            if let Ok(Some(hit)) = store.cache_lookup(&query) {
+                let risk = RiskClassifier.assess(&hit.command);
+                if risk.level == RiskLevel::Safe {
+                    let latency_ms = cache_started.elapsed().as_millis() as u64;
+                    let candidates = vec![Candidate {
+                        command: hit.command.clone(),
+                        explanation: hit.explanation.clone().unwrap_or_default(),
+                        confidence: 1.0,
+                    }];
+                    why.routing_mode = "cache".into();
+                    why.routing_chosen = hit.backend.clone();
+                    why.routing_reason = Some("fast-path cache hit".into());
+
+                    let rec = Interaction {
+                        id: None,
+                        ts: std::time::SystemTime::now()
+                            .duration_since(std::time::UNIX_EPOCH)
+                            .map(|d| d.as_millis() as i64)
+                            .unwrap_or(0),
+                        session_id: "cli".into(),
+                        project_id: project_id.clone(),
+                        cwd: ctx.env.cwd.clone(),
+                        os: ctx.env.os.clone(),
+                        shell: ctx.env.shell.clone(),
+                        input_nl: text.clone(),
+                        output_cmd: hit.command.clone(),
+                        explanation: hit.explanation.clone(),
+                        backend: hit.backend.clone(),
+                        model: hit.model.clone(),
+                        confidence: Some(1.0),
+                        latency_ms,
+                        risk_level: risk.level,
+                        risk_notes: risk.rules.iter().map(|r| r.0.clone()).collect(),
+                        from_cache: true,
+                        accepted: None,
+                        executed: None,
+                        tags: vec![],
+                    };
+                    let mut warnings = warnings;
+                    if let Err(e) = store.record_interaction(&rec) {
+                        warnings.push(format!("memory degraded: {e}"));
+                    }
+                    return Ok(TranslateOut {
+                        input: text,
+                        candidates,
+                        risk,
+                        backend_id: hit.backend,
+                        model: hit.model,
+                        latency_ms,
+                        from_cache: true,
+                        warnings,
+                        raw: String::new(),
+                        why,
+                        refused: None,
+                        escalated_from: None,
+                        project_id,
+                    });
+                }
+            }
+        }
+    }
+
     let req = PromptBuilder.build(&intent, &ctx, &SecretRedactor);
     let router = build_router(cli, config);
     let started = Instant::now();

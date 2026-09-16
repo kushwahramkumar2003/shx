@@ -5,6 +5,7 @@
 #![forbid(unsafe_code)]
 
 mod bm25;
+pub mod cache;
 pub mod memory;
 pub mod paths;
 pub mod record;
@@ -14,6 +15,9 @@ pub mod sqlite;
 pub mod store;
 pub mod vocab;
 
+pub use cache::{
+    CacheHit, CacheQuery, compute_context_fingerprint, normalize_intent, validate_cacheable,
+};
 pub use memory::InMemoryStore;
 pub use retrieve::{ContextBudget, ContextBuilder, memory_tokens};
 pub use scope::{
