@@ -109,6 +109,21 @@ impl InMemoryStore {
         Ok((before - g.vocab.len()) as u64)
     }
 
+    /// Look up eligible cached command matching normalized intent and context fingerprint.
+    pub fn cache_lookup(
+        &self,
+        query: &crate::cache::CacheQuery<'_>,
+    ) -> Result<Option<crate::cache::CacheHit>> {
+        let g = self
+            .inner
+            .lock()
+            .map_err(|e| MemoryError::Message(e.to_string()))?;
+        Ok(crate::cache::find_cache_hit_in_interactions(
+            &g.interactions,
+            query,
+        ))
+    }
+
     /// Prune using an explicit timestamp (FakeClock).
     pub fn prune_at(&self, policy: &PrunePolicy, now: i64) -> Result<PruneReport> {
         let mut g = self

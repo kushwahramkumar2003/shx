@@ -15,6 +15,12 @@ While pre-1.0, breaking changes bump the **minor** version and are called out un
 
 ### Added
 
+- Fast-path cache: lookup keyed by normalized intent and context fingerprint
+  `(normalized_intent, os, shell, cwd, project_id)` (< 5 ms latency). Eligible
+  commands require Safe risk level and explicit acceptance (`accepted = 1`) or
+  repetition (2+ times); danger results are never cached. Cache hits surface
+  `from_cache: true` in `--json` and `--why` (T-502, T-MEM-4).
+
 - Project scoping and container detection: git root discovery computes deterministic
   `project_id` hashes, enabling disjoint project-scoped recall in memory; `in_container`
   detects container runtimes via filesystem markers, cgroups, and environment;

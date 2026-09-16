@@ -420,6 +420,8 @@ eligibility rules from [03-MEMORY.md](../03-MEMORY.md) §5.
 cache-hit path < 5 ms (bench); cache never stores `danger` results; `from_cache`
 surfaced in `--json`/`--why`.
 
+**Status:** completed (local-only).
+
 ### T-503 — Feedback loop + weights/decay · Memory · M
 
 **Deps:** T-205

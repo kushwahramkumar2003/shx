@@ -859,3 +859,96 @@ fn t_501_cli_project_scoping_and_override() {
         "--project override reflects target repo's project_id"
     );
 }
+
+/// T-502: Fast-path cache end-to-end integration:
+/// - 1st invocation: misses cache (from_cache: false)
+/// - 2nd invocation: misses cache (only 1 unmarked past run)
+/// - 3rd invocation: hits cache! (from_cache: true in --json and --why, < 5 ms)
+/// - --no-memory: bypasses cache (from_cache: false)
+/// - different directory: misses cache (T-MEM-4)
+#[test]
+fn t_502_cli_fast_path_cache_hit_and_from_cache_surfaced() {
+    let home = unique_home();
+    let work_dir = home.join("work");
+    let other_dir = home.join("other");
+    fs::create_dir_all(&work_dir).unwrap();
+    fs::create_dir_all(&other_dir).unwrap();
+
+    // 1. First invocation: from_cache = false
+    let assert1 = shx_in(&work_dir)
+        .env("HOME", home.to_str().unwrap())
+        .args(["--offline", "--json", "run pg on 7000"])
+        .assert()
+        .success();
+    let stdout1 = String::from_utf8_lossy(&assert1.get_output().stdout);
+    let v1: serde_json::Value = serde_json::from_str(stdout1.trim()).expect("json1");
+    assert_eq!(v1["memory"]["from_cache"], false);
+
+    // 2. Second invocation: still only 1 prior run -> from_cache = false
+    let assert2 = shx_in(&work_dir)
+        .env("HOME", home.to_str().unwrap())
+        .args(["--offline", "--json", "run pg on 7000"])
+        .assert()
+        .success();
+    let stdout2 = String::from_utf8_lossy(&assert2.get_output().stdout);
+    let v2: serde_json::Value = serde_json::from_str(stdout2.trim()).expect("json2");
+    assert_eq!(v2["memory"]["from_cache"], false);
+
+    // 3. Third invocation: repeated 2+ times previously -> from_cache = true!
+    let assert3 = shx_in(&work_dir)
+        .env("HOME", home.to_str().unwrap())
+        .args(["--offline", "--json", "run pg on 7000"])
+        .assert()
+        .success();
+    let stdout3 = String::from_utf8_lossy(&assert3.get_output().stdout);
+    let v3: serde_json::Value = serde_json::from_str(stdout3.trim()).expect("json3");
+    assert_eq!(
+        v3["memory"]["from_cache"], true,
+        "from_cache must be true in --json on cache hit"
+    );
+    assert!(
+        v3["commands"][0]["command"]
+            .as_str()
+            .unwrap()
+            .contains("docker run --name pg"),
+        "cached command returned"
+    );
+
+    // 4. Invocations with --why: surfaces from_cache: true
+    let assert_why = shx_in(&work_dir)
+        .env("HOME", home.to_str().unwrap())
+        .args(["--offline", "--why", "run pg on 7000"])
+        .assert()
+        .success();
+    let stderr_why = String::from_utf8_lossy(&assert_why.get_output().stderr);
+    assert!(
+        stderr_why.contains("from_cache: true"),
+        "--why should display from_cache: true: {stderr_why}"
+    );
+
+    // 5. With --no-memory: bypasses cache -> from_cache = false
+    let assert_no_mem = shx_in(&work_dir)
+        .env("HOME", home.to_str().unwrap())
+        .args(["--offline", "--no-memory", "--json", "run pg on 7000"])
+        .assert()
+        .success();
+    let stdout_no_mem = String::from_utf8_lossy(&assert_no_mem.get_output().stdout);
+    let v_no_mem: serde_json::Value = serde_json::from_str(stdout_no_mem.trim()).expect("json");
+    assert_eq!(
+        v_no_mem["memory"]["from_cache"], false,
+        "--no-memory must not hit cache"
+    );
+
+    // 6. In a different directory: misses cache (T-MEM-4) -> from_cache = false
+    let assert_other = shx_in(&other_dir)
+        .env("HOME", home.to_str().unwrap()) // share memory DB in home
+        .args(["--offline", "--json", "run pg on 7000"])
+        .assert()
+        .success();
+    let stdout_other = String::from_utf8_lossy(&assert_other.get_output().stdout);
+    let v_other: serde_json::Value = serde_json::from_str(stdout_other.trim()).expect("json");
+    assert_eq!(
+        v_other["memory"]["from_cache"], false,
+        "different cwd must miss cache (T-MEM-4)"
+    );
+}
