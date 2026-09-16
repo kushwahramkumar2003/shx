@@ -117,12 +117,7 @@ pub fn run(
         ));
     }
     if cli.cloud {
-        let var = &config.backend.cloud.api_key_env;
-        if env::var_os(var).is_none() {
-            return Err(PipelineError::Usage(format!(
-                "--cloud unconfigured: set {var} (the name from backend.cloud.api_key_env)"
-            )));
-        }
+        ensure_cloud_configured(config)?;
     }
 
     let text = resolve_intent(cli)?;
@@ -155,6 +150,8 @@ pub fn run(
         text: text.clone(),
         force_backend: if cli.local {
             Some(ForceBackend::Local)
+        } else if cli.cloud {
+            Some(ForceBackend::Cloud)
         } else {
             None
         },
@@ -292,10 +289,7 @@ fn build_router(cli: &Cli, config: &Config) -> BackendRouter {
         complexity_skip_local: config.backend.complexity_skip_local,
     };
     if cli.offline {
-        let cfg = RouterConfig {
-            mode: RouteMode::LocalFirst,
-            ..cfg
-        };
+        let cfg = RouterConfig { mode, ..cfg };
         return BackendRouter::new(
             EgressBackend::wrap_box(Box::new(MockBackend::new())),
             None,
@@ -330,6 +324,38 @@ fn route_mode(cli: &Cli, config: &Config) -> RouteMode {
     }
 }
 
+fn ensure_cloud_configured(config: &Config) -> Result<(), PipelineError> {
+    let c = &config.backend.cloud;
+    match c.kind.as_str() {
+        "anthropic" => {
+            let var = &c.api_key_env;
+            let has_key = env::var_os(var).is_some() || env::var_os("SHX_CLOUD_API_KEY").is_some();
+            if !has_key {
+                return Err(PipelineError::Usage(format!(
+                    "--cloud unconfigured: set {var} (the name from backend.cloud.api_key_env)"
+                )));
+            }
+            Ok(())
+        }
+        "openai-compat" => {
+            let var = &c.api_key_env;
+            if var.is_empty() {
+                return Ok(());
+            }
+            let has_key = env::var_os(var).is_some() || env::var_os("SHX_CLOUD_API_KEY").is_some();
+            if !has_key {
+                return Err(PipelineError::Usage(format!(
+                    "--cloud unconfigured: set {var} (the name from backend.cloud.api_key_env)"
+                )));
+            }
+            Ok(())
+        }
+        unknown => Err(PipelineError::Usage(format!(
+            "--cloud unconfigured: unsupported cloud provider '{unknown}'"
+        ))),
+    }
+}
+
 fn cloud_backend(config: &Config) -> Option<Box<dyn Backend>> {
     let c = &config.backend.cloud;
     match c.kind.as_str() {
@@ -347,15 +373,23 @@ fn cloud_backend(config: &Config) -> Option<Box<dyn Backend>> {
                     .unwrap_or_else(|| "https://api.anthropic.com".into()),
             })))
         }
-        "openai-compat" => Some(Box::new(OpenAiCompatBackend::new(OpenAiCompatSettings {
-            base_url: c
-                .base_url
-                .clone()
-                .unwrap_or_else(|| "https://api.openai.com/v1".into()),
-            model: c.model.clone(),
-            api_key_env: c.api_key_env.clone(),
-            timeout_ms: c.timeout_ms,
-        }))),
+        "openai-compat" => {
+            if !c.api_key_env.is_empty()
+                && env::var_os(&c.api_key_env).is_none()
+                && env::var_os("SHX_CLOUD_API_KEY").is_none()
+            {
+                return None;
+            }
+            Some(Box::new(OpenAiCompatBackend::new(OpenAiCompatSettings {
+                base_url: c
+                    .base_url
+                    .clone()
+                    .unwrap_or_else(|| "https://api.openai.com/v1".into()),
+                model: c.model.clone(),
+                api_key_env: c.api_key_env.clone(),
+                timeout_ms: c.timeout_ms,
+            })))
+        }
         _ => None,
     }
 }

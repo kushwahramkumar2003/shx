@@ -391,6 +391,8 @@ redaction is asserted for both cloud and local paths (defense in depth).
 **Acceptance:** CLI table test; forcing cloud with no key never silently falls
 back to local.
 
+**Status:** completed (local-only). Completes Wave 6 (M4).
+
 ---
 
 ## Wave 7 — M5 Context awareness & learning
@@ -448,7 +450,7 @@ BM25 over the interaction corpus.
 **Acceptance:** golden bundle tests updated and reviewed; improvement measured on
 the eval harness (T6) — PR includes the delta; determinism preserved.
 
-**Status:** in_progress (owner=grok-cli, branch=feat/t-505-bm25).
+**Status:** completed (local-only). Unblocks **T-506**.
 
 ### T-506 — Eval harness (T6) · QA · L
 

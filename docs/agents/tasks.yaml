@@ -477,11 +477,14 @@ tasks:
     role: CLI/UX
     size: S
     deps: [T-403]
-    deliverables: [shx-cli/src/main.rs]
+    deliverables: [shx-cli/src/main.rs, shx-cli/src/pipeline.rs]
     acceptance:
       - --cloud unconfigured → usage error (exit 2); never silently falls back to local
-    status: pending
-    owner: null
+    notes: verify=cargo xtask ci green; t_405_local_cloud_flags_table_test. Completes Wave 6 (M4).
+    status: completed
+    owner: antigravity
+    branch: feat/t-405-local-cloud-flags
+    pr_url: local-only (no remote)
 
   # ── Wave 7 · M5 Context awareness & learning ─────────────────────────────
   - id: T-501
