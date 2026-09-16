@@ -15,6 +15,10 @@ While pre-1.0, breaking changes bump the **minor** version and are called out un
 
 ### Added
 
+- Project scoping and container detection: git root discovery computes deterministic
+  `project_id` hashes, enabling disjoint project-scoped recall in memory; `in_container`
+  detects container runtimes via filesystem markers, cgroups, and environment;
+  `--project` overrides project scoping (T-501).
 - `--local` and `--cloud` flags force single-invocation backend routing. `--cloud`
   without a configured key exits 2 (usage error) and never silently falls back to
   local; `--local` forces the local backend and never escalates to cloud (T-405).

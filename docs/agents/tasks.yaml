@@ -498,8 +498,11 @@ tasks:
     acceptance:
       - two repos → distinct project_id and disjoint project-scoped recall
       - in_container detection works inside/outside a container (mocked FS)
-    status: pending
-    owner: null
+    status: completed
+    owner: antigravity
+    branch: feat/t-501-project-scoping
+    notes: "verify=cargo xtask ci green; t_scope.rs, t_501_cli_project_scoping_and_override."
+    pr_url: local-only (no remote)
 
   - id: T-502
     title: Fast-path cache

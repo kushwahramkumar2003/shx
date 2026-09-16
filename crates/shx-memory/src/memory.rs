@@ -42,6 +42,11 @@ fn now_ms() -> i64 {
 const DAY_MS: i64 = 86_400_000;
 
 impl InMemoryStore {
+    /// Create a new empty in-memory store.
+    pub fn new() -> Self {
+        Self::default()
+    }
+
     /// Insert or replace a snippet by unique name (redacted). Not on the frozen trait.
     pub fn insert_snippet(&self, s: Snippet) -> Result<()> {
         self.upsert_snippet(&s).map(|_| ())
