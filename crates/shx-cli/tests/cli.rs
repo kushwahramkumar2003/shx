@@ -658,3 +658,137 @@ fn snippet_never_auto_executes_as_bare_name() {
         "bare shx <name> must not print the snippet command: {stdout:?}"
     );
 }
+
+/// T-405: `--local` and `--cloud` CLI flags table test.
+/// Forcing cloud with no key never silently falls back to local.
+/// `--cloud` unconfigured yields exit 2.
+/// `--local` never escalates to cloud.
+#[test]
+fn t_405_local_cloud_flags_table_test() {
+    let home = unique_home();
+
+    // 1. --cloud unconfigured -> exit 2 (Usage), error on stderr, stdout empty.
+    let assert = shx_in(&home)
+        .args(["--cloud", "run pg on 7000"])
+        .assert()
+        .code(2);
+    let stdout = String::from_utf8_lossy(&assert.get_output().stdout);
+    let stderr = String::from_utf8_lossy(&assert.get_output().stderr);
+    assert!(
+        stdout.is_empty(),
+        "stdout must be empty on unconfigured cloud: {stdout:?}"
+    );
+    assert!(
+        stderr.contains("--cloud unconfigured: set ANTHROPIC_API_KEY"),
+        "stderr must explain unconfigured key: {stderr:?}"
+    );
+
+    // 2. --cloud unconfigured with --json -> exit 2, stdout empty (never JSON output).
+    let assert = shx_in(&home)
+        .args(["--cloud", "--json", "run pg on 7000"])
+        .assert()
+        .code(2);
+    let stdout = String::from_utf8_lossy(&assert.get_output().stdout);
+    assert!(
+        stdout.is_empty(),
+        "stdout must be empty with --json on exit 2: {stdout:?}"
+    );
+
+    // 3. --cloud with --offline -> exit 2 (forbids network).
+    let assert = shx_in(&home)
+        .args(["--cloud", "--offline", "run pg on 7000"])
+        .assert()
+        .code(2);
+    let stderr = String::from_utf8_lossy(&assert.get_output().stderr);
+    assert!(
+        stderr.contains("--offline forbids network; do not pass --cloud"),
+        "stderr explains conflict: {stderr:?}"
+    );
+
+    // 4. --cloud and --local together -> exit 2 (argument conflict).
+    shx_in(&home)
+        .args(["--local", "--cloud", "--offline", "run pg on 7000"])
+        .assert()
+        .code(2);
+
+    // 5. --local with --offline -> exit 0, pure command on stdout.
+    let assert = shx_in(&home)
+        .args(["--local", "--offline", "run pg on 7000"])
+        .assert()
+        .success();
+    let stdout = String::from_utf8_lossy(&assert.get_output().stdout);
+    assert_eq!(stdout, FIXTURE);
+
+    // 6. --local with --why -> routing mode is "local".
+    let assert = shx_in(&home)
+        .args(["--local", "--offline", "--why", "run pg on 7000"])
+        .assert()
+        .success();
+    let stdout = String::from_utf8_lossy(&assert.get_output().stdout);
+    let stderr = String::from_utf8_lossy(&assert.get_output().stderr);
+    assert_eq!(stdout, FIXTURE);
+    assert!(
+        stderr.contains("why:\n") && stderr.contains("routing: local"),
+        "--why should show local routing mode: {stderr:?}"
+    );
+
+    // 7. --local when local backend fails and cloud key IS present -> exit 4, NEVER escalates to cloud.
+    let cfg = home.join("broken_local.toml");
+    fs::write(
+        &cfg,
+        "[backend.local]\nbase_url = \"http://127.0.0.1:1\"\ntimeout_ms = 200\n[backend.cloud]\nkind = \"anthropic\"\napi_key_env = \"ANTHROPIC_API_KEY\"\n",
+    )
+    .unwrap();
+    let assert = shx_in(&home)
+        .env("ANTHROPIC_API_KEY", "dummy-key-should-not-be-called")
+        .args([
+            "--config",
+            cfg.to_str().unwrap(),
+            "--local",
+            "run pg on 7000",
+        ])
+        .assert()
+        .code(4);
+    let stdout = String::from_utf8_lossy(&assert.get_output().stdout);
+    let stderr = String::from_utf8_lossy(&assert.get_output().stderr);
+    assert!(
+        stdout.is_empty(),
+        "stdout must be empty on local failure: {stdout:?}"
+    );
+    assert!(
+        stderr.contains("shx:"),
+        "stderr should have backend error: {stderr:?}"
+    );
+    assert!(
+        !stderr.contains("escalated to"),
+        "--local must NEVER escalate to cloud: {stderr:?}"
+    );
+
+    // 8. --cloud when cloud backend fails (e.g. unreachable) -> exit 4, NEVER silently falls back to local.
+    let cloud_cfg = home.join("broken_cloud.toml");
+    fs::write(
+        &cloud_cfg,
+        "[backend.local]\nbase_url = \"http://127.0.0.1:11434\"\n[backend.cloud]\nkind = \"openai-compat\"\nbase_url = \"http://127.0.0.1:1/v1\"\napi_key_env = \"TEST_KEY\"\ntimeout_ms = 200\n",
+    )
+    .unwrap();
+    let assert = shx_in(&home)
+        .env("TEST_KEY", "test-secret")
+        .args([
+            "--config",
+            cloud_cfg.to_str().unwrap(),
+            "--cloud",
+            "run pg on 7000",
+        ])
+        .assert()
+        .code(4);
+    let stdout = String::from_utf8_lossy(&assert.get_output().stdout);
+    let stderr = String::from_utf8_lossy(&assert.get_output().stderr);
+    assert!(
+        stdout.is_empty(),
+        "stdout must be empty when cloud fails: {stdout:?}"
+    );
+    assert!(
+        !stderr.contains("ollama"),
+        "--cloud must NEVER fall back to local: {stderr:?}"
+    );
+}

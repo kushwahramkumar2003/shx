@@ -15,6 +15,10 @@ While pre-1.0, breaking changes bump the **minor** version and are called out un
 
 ### Added
 
+- `--local` and `--cloud` flags force single-invocation backend routing. `--cloud`
+  without a configured key exits 2 (usage error) and never silently falls back to
+  local; `--local` forces the local backend and never escalates to cloud (T-405).
+
 - Context builder step 2 now ranks `Tool` history with BM25 (deterministic,
   no new deps). Offline ranking-delta tests record the keyword→BM25 lift;
   T-506 will wire the same fixture into the eval harness.
