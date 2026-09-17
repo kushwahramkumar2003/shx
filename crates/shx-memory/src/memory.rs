@@ -109,6 +109,123 @@ impl InMemoryStore {
         Ok((before - g.vocab.len()) as u64)
     }
 
+    /// Fetch one interaction by id.
+    pub fn get_interaction(&self, id: i64) -> Result<Option<Interaction>> {
+        let g = self
+            .inner
+            .lock()
+            .map_err(|e| MemoryError::Message(e.to_string()))?;
+        Ok(g.interactions.iter().find(|i| i.id == Some(id)).cloned())
+    }
+
+    /// Set `executed` without touching any other column.
+    pub fn set_executed(&self, id: i64, executed: bool) -> Result<()> {
+        let mut g = self
+            .inner
+            .lock()
+            .map_err(|e| MemoryError::Message(e.to_string()))?;
+        let row = g
+            .interactions
+            .iter_mut()
+            .find(|i| i.id == Some(id))
+            .ok_or_else(|| MemoryError::Message(format!("no interaction {id}")))?;
+        row.executed = Some(executed);
+        Ok(())
+    }
+
+    /// Set `accepted` without touching vocabulary (used by `--accepted`).
+    pub fn set_accepted(&self, id: i64, accepted: bool) -> Result<()> {
+        let mut g = self
+            .inner
+            .lock()
+            .map_err(|e| MemoryError::Message(e.to_string()))?;
+        let row = g
+            .interactions
+            .iter_mut()
+            .find(|i| i.id == Some(id))
+            .ok_or_else(|| MemoryError::Message(format!("no interaction {id}")))?;
+        row.accepted = Some(accepted);
+        Ok(())
+    }
+
+    /// Record `verdict` at `now_ms` and update vocabulary weights.
+    ///
+    /// `good` sets `accepted = true` and bumps every vocabulary row whose
+    /// term appears in the interaction's intent (`+0.5`, capped at `3.0`),
+    /// creating a `Learned` row at `0.5` when the term is new (so one-off
+    /// coincidences stay below the `1.5` apply threshold). `bad` sets
+    /// `accepted = false` and lowers matching rows by `0.5` (floored at
+    /// `0.0`) without ever creating rows. Returns vocabulary rows
+    /// created or updated. `note` is accepted for API symmetry and ignored
+    /// (the in-memory double stores no feedback table).
+    pub fn feedback_at(
+        &self,
+        interaction_id: i64,
+        verdict: Verdict,
+        _note: Option<&str>,
+        now_ms: i64,
+    ) -> Result<u64> {
+        let mut g = self
+            .inner
+            .lock()
+            .map_err(|e| MemoryError::Message(e.to_string()))?;
+        let input = {
+            let row = g
+                .interactions
+                .iter_mut()
+                .find(|i| i.id == Some(interaction_id))
+                .ok_or_else(|| MemoryError::Message(format!("no interaction {interaction_id}")))?;
+            row.accepted = Some(matches!(verdict, Verdict::Good));
+            row.input_nl.clone()
+        };
+        let terms = crate::vocab::extract_terms(&input);
+        if terms.is_empty() {
+            return Ok(0);
+        }
+        let mut touched = 0u64;
+        match verdict {
+            Verdict::Good => {
+                for term in &terms {
+                    let matches: Vec<usize> = g
+                        .vocab
+                        .iter()
+                        .enumerate()
+                        .filter(|(_, v)| &v.term == term)
+                        .map(|(idx, _)| idx)
+                        .collect();
+                    if matches.is_empty() {
+                        g.vocab.push(crate::vocab::apply_good(None, term, now_ms));
+                        touched += 1;
+                    } else {
+                        for idx in matches {
+                            let next =
+                                crate::vocab::apply_good(Some(&g.vocab[idx].clone()), term, now_ms);
+                            g.vocab[idx] = next;
+                            touched += 1;
+                        }
+                    }
+                }
+            }
+            Verdict::Bad => {
+                for term in &terms {
+                    let matches: Vec<usize> = g
+                        .vocab
+                        .iter()
+                        .enumerate()
+                        .filter(|(_, v)| &v.term == term)
+                        .map(|(idx, _)| idx)
+                        .collect();
+                    for idx in matches {
+                        let next = crate::vocab::apply_bad(&g.vocab[idx].clone(), now_ms);
+                        g.vocab[idx] = next;
+                        touched += 1;
+                    }
+                }
+            }
+        }
+        Ok(touched)
+    }
+
     /// Look up eligible cached command matching normalized intent and context fingerprint.
     pub fn cache_lookup(
         &self,
@@ -255,17 +372,8 @@ impl MemoryStore for InMemoryStore {
         Ok(g.snippets.clone())
     }
 
-    fn feedback(&self, interaction_id: i64, v: Verdict, _note: Option<&str>) -> Result<()> {
-        let mut g = self
-            .inner
-            .lock()
-            .map_err(|e| MemoryError::Message(e.to_string()))?;
-        let row = g
-            .interactions
-            .iter_mut()
-            .find(|i| i.id == Some(interaction_id))
-            .ok_or_else(|| MemoryError::Message(format!("no interaction {interaction_id}")))?;
-        row.accepted = Some(matches!(v, Verdict::Good));
+    fn feedback(&self, interaction_id: i64, v: Verdict, note: Option<&str>) -> Result<()> {
+        self.feedback_at(interaction_id, v, note, now_ms())?;
         Ok(())
     }
 

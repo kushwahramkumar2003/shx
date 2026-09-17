@@ -336,6 +336,7 @@ fn dispatch(cli: Cli) -> anyhow::Result<i32> {
             Commands::History { .. } => commands::history::run(&cli),
             Commands::Teach { .. } => commands::teach::run(&cli),
             Commands::Snippet { .. } => commands::snippet::run(&cli),
+            Commands::Feedback { .. } => commands::feedback::run(&cli),
             other => stub_command(other),
         });
     }
@@ -395,8 +396,8 @@ fn stub_command(cmd: &Commands) -> i32 {
         | Commands::Config { .. }
         | Commands::History { .. }
         | Commands::Teach { .. }
-        | Commands::Snippet { .. } => unreachable!("dispatched above"),
-        Commands::Feedback { .. } => "feedback",
+        | Commands::Snippet { .. }
+        | Commands::Feedback { .. } => unreachable!("dispatched above"),
         Commands::ImportHistory { .. } => "import-history",
         Commands::Completion { .. } => "completion",
         Commands::Man => "man",

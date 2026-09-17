@@ -532,8 +532,11 @@ tasks:
     acceptance:
       - good raises weights (cap 3.0); bad lowers or does not raise
       - --executed sets executed=1; decay deterministic
-    status: pending
-    owner: null
+    notes: verify=cargo xtask ci green (9/9); t_feedback.rs 12 tests, feedback.rs CLI 5 tests, vocab unit 4 new tests. Frozen MemoryStore trait unchanged (inherent feedback_at/set_executed/set_accepted only). Fixes SQLite prune decay boundary < to <= to match InMemoryStore >=. Leaf task, unblocks nothing.
+    status: completed
+    owner: muse-spark
+    branch: feat/t-503-feedback-loop
+    pr_url: local-only (no remote)
 
   - id: T-504
     title: Snippets
