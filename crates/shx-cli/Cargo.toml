@@ -42,3 +42,5 @@ shx-config.workspace = true
 [dev-dependencies]
 assert_cmd.workspace = true
 serde_json.workspace = true
+# Already in the dependency tree (shx-memory); used to assert on shell_history rows.
+rusqlite.workspace = true
