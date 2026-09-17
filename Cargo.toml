@@ -16,6 +16,11 @@ edition = "2024"
 rust-version = "1.95"
 license = "MIT OR Apache-2.0"
 description = "Print-only natural-language to shell-command translator"
+# Placeholder until the org exists (same <org> convention as CHANGELOG.md);
+# release URLs, formula, and manifests derive from it.
+repository = "https://github.com/<org>/shx"
+# Requested by `dist init` for the Homebrew formula; same placeholder.
+homepage = "https://github.com/<org>/shx"
 
 [workspace.dependencies]
 # Inward-only graph (ADR-011): core has no shx-* deps; everyone else depends inward.
@@ -43,3 +48,8 @@ unsafe_code = "forbid"
 lto = "thin"
 codegen-units = 1
 strip = true
+
+# The profile that 'dist' will build with
+[profile.dist]
+inherits = "release"
+lto = "thin"
