@@ -84,6 +84,26 @@ cargo build --release
 cargo run -p shx -- --offline "run pg on 7000"
 ```
 
+## Benchmarks (T6 eval)
+
+`cargo run -p shx-eval` scores the 20 intents in
+`tools/eval/fixtures/translate.json` (exact / regex / acceptable, risk
+misclassifications, latency, cache-hit rate). Offline baseline (mock
+backend, deterministic wiring check — quality needs a live model, see
+[tools/eval/README.md](tools/eval/README.md)):
+
+```text
+cases: 20  passes: 3  backend: mock  model: fixture
+exact 0/20 (0.0%) | regex 1/20 (5.0%) | acceptable 0/20 (0.0%)
+risk_misclassified: 0  errors: 0
+latency_p50_ms: 0.003  latency_p95_ms: 0.253  tokens_total: 0
+cache: 20/40 repeat lookups hit (50.0%)
+```
+
+Regenerate with `cargo run -p shx-eval -- --fixtures
+tools/eval/fixtures/translate.json`; gate regressions with `--min-exact`.
+`.github/workflows/eval.yml` runs the harness on prompt/backend paths.
+
 ## License
 
 Dual-licensed under MIT OR Apache-2.0, the Rust ecosystem norm. See
