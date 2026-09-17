@@ -26,6 +26,10 @@ allow = [
     "Unicode-3.0",
     "Zlib",
     "CDLA-Permissive-2.0",
+    # T-603: arboard's Windows clipboard lineage (clipboard-win) pulls tiny
+    # BSL-1.0 crates (str-buf, error-code). BSL-1.0 is OSI-approved,
+    # FSF-free, and permissive — same class as the MIT/BSD/ISC entries above.
+    "BSL-1.0",
 ]
 confidence-threshold = 0.8
 # Unused allowances stay until later crates (ureq, rusqlite, clap) land.

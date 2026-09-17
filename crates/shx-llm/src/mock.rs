@@ -18,6 +18,10 @@ enum Script {
         explanation: String,
         confidence: f32,
     },
+    /// Canned multi-candidate translation (T-603 `-n` acceptance).
+    OkMulti {
+        candidates: Vec<(String, String, f32)>,
+    },
     /// Injected provider failure.
     Fault(ErrorKind),
 }
@@ -64,6 +68,27 @@ impl MockBackend {
             "Hard-resets the repo then deletes the filesystem root.",
             0.3,
         );
+        // Spec §2 `-n` example: three ranked alternatives for one intent.
+        this.script_ok_multi(
+            "start postgres in docker on port 7000",
+            [
+                (
+                    "docker run --name pg -e POSTGRES_PASSWORD=postgres -p 7000:5432 -d postgres:16",
+                    "Starts a detached Postgres 16 container named pg, mapping host port 7000 to container 5432.",
+                    0.9,
+                ),
+                (
+                    "docker run --rm -p 7000:5432 -d postgres:16",
+                    "Starts an ephemeral Postgres container on host port 7000.",
+                    0.7,
+                ),
+                (
+                    "docker compose run --service-ports db",
+                    "Starts the compose db service with published ports.",
+                    0.5,
+                ),
+            ],
+        );
         this
     }
 
@@ -88,6 +113,24 @@ impl MockBackend {
                 command: command.into(),
                 explanation: explanation.into(),
                 confidence,
+            },
+        );
+        self
+    }
+
+    /// Script a multi-candidate translation for `intent` (ranked best first).
+    pub fn script_ok_multi(
+        &mut self,
+        intent: impl Into<String>,
+        candidates: impl IntoIterator<Item = (impl Into<String>, impl Into<String>, f32)>,
+    ) -> &mut Self {
+        self.scripts.insert(
+            intent.into(),
+            Script::OkMulti {
+                candidates: candidates
+                    .into_iter()
+                    .map(|(c, e, f)| (c.into(), e.into(), f))
+                    .collect(),
             },
         );
         self
@@ -130,6 +173,25 @@ fn error_for(kind: ErrorKind) -> BackendError {
         backend: "mock",
         retryable: MockBackend::retryable(kind),
         detail: detail.into(),
+    }
+}
+
+fn ok_multi_response(candidates: Vec<(String, String, f32)>) -> TranslateResponse {
+    TranslateResponse {
+        candidates: candidates
+            .into_iter()
+            .map(|(command, explanation, confidence)| Candidate {
+                command,
+                explanation,
+                confidence,
+            })
+            .collect(),
+        raw: String::new(),
+        usage: Usage::default(),
+        backend_id: "mock".into(),
+        model: "fixture".into(),
+        latency_ms: 0,
+        confidence: Some(0.9),
     }
 }
 
@@ -184,6 +246,7 @@ impl Backend for MockBackend {
                 explanation.clone(),
                 *confidence,
             )),
+            Some(Script::OkMulti { candidates }) => Ok(ok_multi_response(candidates.clone())),
             Some(Script::Fault(kind)) => Err(error_for(*kind)),
             None => Ok(ok_response(
                 format!("true # mock: {key}"),
@@ -238,6 +301,26 @@ mod tests {
         assert_eq!(a, b);
         assert!(a.candidates[0].command.contains("postgres:16"));
         assert_eq!(a.confidence, Some(0.95));
+    }
+
+    #[test]
+    fn scripted_multi_returns_ranked_candidates() {
+        let mock = MockBackend::new();
+        let resp = mock
+            .translate(&req_for("start postgres in docker on port 7000"))
+            .unwrap();
+        assert_eq!(resp.candidates.len(), 3);
+        assert!(resp.candidates[0].command.contains("7000:5432"));
+        assert!(resp.candidates[0].command.contains("--name pg"));
+        assert_eq!(
+            resp.candidates[2].command,
+            "docker compose run --service-ports db"
+        );
+        assert!(
+            resp.candidates[0].confidence >= resp.candidates[1].confidence
+                && resp.candidates[1].confidence >= resp.candidates[2].confidence,
+            "ranked best first"
+        );
     }
 
     #[test]

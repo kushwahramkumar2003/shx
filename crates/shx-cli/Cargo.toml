@@ -16,8 +16,8 @@ path = "src/main.rs"
 default = ["cloud", "clipboard"]
 # Cloud backends (anthropic, openai-compat) land in later tasks.
 cloud = []
-# `--copy` clipboard support lands later (`dep:arboard`).
-clipboard = []
+# `--copy` clipboard support (T-603): system clipboard via arboard.
+clipboard = ["dep:arboard"]
 
 [lints]
 workspace = true
@@ -28,6 +28,7 @@ path = "../../tests/invariants/print_only.rs"
 
 [dependencies]
 anyhow.workspace = true
+arboard = { version = "2", optional = true, default-features = false }
 clap.workspace = true
 serde.workspace = true
 serde_json.workspace = true

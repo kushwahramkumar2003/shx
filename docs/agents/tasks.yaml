@@ -631,8 +631,11 @@ tasks:
     deliverables: [shx-cli/src/render.rs]
     acceptance:
       - -n 3 prints 3 lines to stdout; --copy works with clipboard feature, absent without it
-    status: pending
-    owner: null
+    notes: verify=cargo xtask ci green (9/9 incl. deny/audit, size 4.78MB); 6 candidates CLI + render unit + 1 mock multi test. arboard 2 optional dep (clipboard feature); deny allow BSL-1.0 for its Windows lineage (commented). Mock gained additive script_ok_multi + spec-§2 script (no trait change). Unblocks=T-606.
+    status: completed
+    owner: muse-spark
+    branch: feat/t-603-candidates-copy
+    pr_url: local-only (no remote)
 
   - id: T-604
     title: Completions + man page

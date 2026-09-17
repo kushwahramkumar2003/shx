@@ -174,6 +174,7 @@ pub fn run(cli: &Cli) -> i32 {
                 exit_on_risk: loaded.config.safety.exit_on_risk,
                 warn_on_risk: loaded.config.safety.warn_on_risk,
                 color: color_stderr(loaded.config.ui.color),
+                copy: cli.copy,
             },
         ),
         Err(PipelineError::Usage(msg)) => {
