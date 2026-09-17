@@ -835,6 +835,7 @@ dependencies = [
  "clap",
  "clap_complete",
  "clap_mangen",
+ "rusqlite",
  "serde",
  "serde_json",
  "shx-config",
