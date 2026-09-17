@@ -615,8 +615,11 @@ tasks:
     deliverables: [shx-cli/src/commands/chat.rs]
     acceptance:
       - session groups interactions; final command recorded once; Ctrl-C exits clean
-    status: pending
-    owner: null
+    notes: verify=cargo xtask ci green (9/9); 2 chat unit + 9 chat CLI tests. pipeline::run takes session_id (None keeps "cli"); per-turn record under sess-<pid>-<nanos>-<n>; blank/EOF ends, errors break, default SIGINT (no new deps). Unblocks nothing.
+    status: completed
+    owner: muse-spark
+    branch: feat/t-602-refine-session
+    pr_url: local-only (no remote)
 
   - id: T-603
     title: -n candidates + --copy

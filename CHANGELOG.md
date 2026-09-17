@@ -15,6 +15,13 @@ While pre-1.0, breaking changes bump the **minor** version and are called out un
 
 ### Added
 
+- `shx -i` refine sessions: the initial intent comes from argv and each
+  follow-up line from stdin; every turn runs the same pipeline and records
+  under one shared `session_id`, so later turns see earlier ones as context.
+  A blank line or EOF ends the session (last turn's exit code); turn errors
+  exit 2/1/4 without extra writes, so the final command is recorded exactly
+  once. Ctrl-C keeps its default disposition (immediate, no cleanup needed).
+  Still print-only: one command per turn on stdout (T-602).
 - `shx --explain "<command>"` reverse mode: sends the command to the
   configured backend (local-first routing, `--local`/`--cloud`/`--offline`
   honored) and prints the returned prose plus the risk banner to stderr.
