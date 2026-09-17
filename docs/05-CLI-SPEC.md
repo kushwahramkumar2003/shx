@@ -307,3 +307,20 @@ original "fill the prompt in place" UX without touching the Rust binary:
 Both are ≤ 30-line scripts shipped under `contrib/shell/`, both documented with
 the exact install line, and both strictly opt-in. They must never `eval` — they
 only write to the edit buffer.
+
+Install (zsh — type a line, press `Ctrl-G` to replace it; rebind `^G` in the
+file to change the key):
+
+```sh
+source /path/to/contrib/shell/shx.zsh
+```
+
+Install (bash — same key):
+
+```sh
+source /path/to/contrib/shell/shx.bash
+```
+
+Both call `shx --exit-on-risk` on the current line and fill the buffer only
+on exit 0. Exit 3 (risk gate) and 4 (backend down) leave the line alone with
+a message, as does any other failure; an empty line is a no-op.
