@@ -123,12 +123,17 @@ pub(crate) fn check_routing_flags(cli: &Cli, config: &Config) -> Result<(), Pipe
 }
 
 /// Run the T-006 pipeline: config → mock (offline only) → candidates.
+///
+/// `session_id` overrides the recorded row's session (refine sessions pass
+/// their shared id; single-shot runs pass `None` and keep `"cli"`).
 pub fn run(
     cli: &Cli,
     config: &Config,
     warnings: Vec<String>,
+    session_id: Option<&str>,
 ) -> Result<TranslateOut, PipelineError> {
     check_routing_flags(cli, config)?;
+    let session_id = session_id.unwrap_or("cli");
 
     let text = resolve_intent(cli)?;
     let count = cli.count.unwrap_or(config.ui.candidates);
@@ -214,7 +219,7 @@ pub fn run(
                             .duration_since(std::time::UNIX_EPOCH)
                             .map(|d| d.as_millis() as i64)
                             .unwrap_or(0),
-                        session_id: "cli".into(),
+                        session_id: session_id.to_owned(),
                         project_id: project_id.clone(),
                         cwd: ctx.env.cwd.clone(),
                         os: ctx.env.os.clone(),
@@ -316,7 +321,7 @@ pub fn run(
                 .duration_since(std::time::UNIX_EPOCH)
                 .map(|d| d.as_millis() as i64)
                 .unwrap_or(0),
-            session_id: "cli".into(),
+            session_id: session_id.to_owned(),
             project_id: project_id.clone(),
             cwd: env::current_dir()
                 .map(|p| p.display().to_string())

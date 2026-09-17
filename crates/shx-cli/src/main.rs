@@ -18,7 +18,7 @@ use pipeline::{PipelineError, flag_overrides};
 use render::{EXIT_BACKEND, EXIT_ERROR, EXIT_USAGE};
 
 /// Natural language in. Shell command out. Nothing executed.
-#[derive(Debug, Parser)]
+#[derive(Debug, Clone, Parser)]
 #[command(name = "shx", version, about)]
 #[command(after_help = "stdout is the command only; explanations and warnings go to stderr.")]
 pub struct Cli {
@@ -102,7 +102,7 @@ pub struct Cli {
     pub intent: Vec<String>,
 }
 
-#[derive(Debug, Subcommand)]
+#[derive(Debug, Clone, Subcommand)]
 enum Commands {
     /// Self-check config, DB, and backends (T-007).
     Doctor {
@@ -197,7 +197,7 @@ enum Commands {
     Man,
 }
 
-#[derive(Debug, Subcommand)]
+#[derive(Debug, Clone, Subcommand)]
 pub(crate) enum HistoryCmd {
     /// Newest-first list (default if no subcommand).
     List,
@@ -231,7 +231,7 @@ pub(crate) enum HistoryCmd {
     },
 }
 
-#[derive(Debug, Subcommand)]
+#[derive(Debug, Clone, Subcommand)]
 pub(crate) enum SnippetCmd {
     /// Store a named command macro (context for the model; never auto-executed).
     Save {
@@ -264,7 +264,7 @@ pub(crate) enum SnippetCmd {
     Rm { name: String },
 }
 
-#[derive(Debug, Subcommand)]
+#[derive(Debug, Clone, Subcommand)]
 pub(crate) enum ConfigCmd {
     /// Print discovered config paths (lowest precedence first).
     Path,
@@ -344,8 +344,7 @@ fn dispatch(cli: Cli) -> anyhow::Result<i32> {
         return Ok(commands::explain::run(&cli));
     }
     if cli.interactive {
-        eprintln!("shx -i: not implemented yet (T-602)");
-        return Ok(EXIT_USAGE);
+        return Ok(commands::chat::run(&cli));
     }
 
     let flags = flag_overrides(&cli);
@@ -361,7 +360,7 @@ fn dispatch(cli: Cli) -> anyhow::Result<i32> {
         eprintln!("warning: {w}");
     }
 
-    match pipeline::run(&cli, &loaded.config, Vec::new()) {
+    match pipeline::run(&cli, &loaded.config, Vec::new(), None) {
         Ok(out) => Ok(render::render(
             &out,
             render::RenderOpts {
