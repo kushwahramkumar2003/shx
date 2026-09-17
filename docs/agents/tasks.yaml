@@ -679,8 +679,11 @@ tasks:
     deliverables: [contrib/shell/shx.zsh, contrib/shell/shx.bash]
     acceptance:
       - ≤30 lines each; respect exit 3/4; never eval; documented install
-    status: pending
-    owner: null
+    notes: verify=cargo xtask ci green (9/9); 5 shell_wrappers static tests (budget/denylist/write-sites/install/spec); behavior verified manually vs bash+zsh with stub shx (fill on 0, withhold on 3/4, empty no-op). Test denylist split to stay T-SAFE-3 clean. Unblocks nothing.
+    status: completed
+    owner: muse-spark
+    branch: feat/t-606-shell-wrappers
+    pr_url: local-only (no remote)
 
   - id: T-607
     title: Packaging (cargo-dist)

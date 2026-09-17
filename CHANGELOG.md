@@ -15,6 +15,12 @@ While pre-1.0, breaking changes bump the **minor** version and are called out un
 
 ### Added
 
+- Opt-in shell wrappers (`contrib/shell/shx.zsh`, `contrib/shell/shx.bash`,
+  ≤30 lines each): type a line, press `Ctrl-G`, and the `shx --exit-on-risk`
+  result fills the edit buffer in place. Exit 3/4 (or anything else) leaves
+  the line alone with a message; empty lines are no-ops. Never `eval` —
+  buffer assignment only. Install lines in the files and in the CLI spec §8
+  (T-606).
 - `shx import-history --shell zsh|bash|fish [--file <path>] [--limit N]
   [--dry-run]`: opt-in ingest into `Scope::Shell` (extended + plain zsh with
   backslash-continuation unfolding, bash `HISTTIMEFORMAT` timestamps,
