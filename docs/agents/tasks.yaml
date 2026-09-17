@@ -599,8 +599,11 @@ tasks:
     deliverables: [shx-cli/src/commands/explain.rs]
     acceptance:
       - prose to stderr; stdout empty except with --json
-    status: pending
-    owner: null
+    notes: verify=cargo xtask ci green (9/9); 4 explain unit + 9 explain CLI tests. Reuses translate_v1 schema/router/--json shape (no frozen changes); model echo ignored in favor of verbatim input; never refuses, never touches memory. Unblocks nothing.
+    status: completed
+    owner: muse-spark
+    branch: feat/t-601-explain
+    pr_url: local-only (no remote)
 
   - id: T-602
     title: -i refine session

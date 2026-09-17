@@ -341,8 +341,7 @@ fn dispatch(cli: Cli) -> anyhow::Result<i32> {
         });
     }
     if cli.explain.is_some() {
-        eprintln!("shx --explain: not implemented yet (T-601)");
-        return Ok(EXIT_USAGE);
+        return Ok(commands::explain::run(&cli));
     }
     if cli.interactive {
         eprintln!("shx -i: not implemented yet (T-602)");

@@ -106,6 +106,53 @@ pub fn render(out: &TranslateOut, opts: RenderOpts) -> i32 {
     }
 }
 
+/// Write a `--explain` result and return the process exit code.
+///
+/// Like [`render`], but stdout stays empty in prose mode: the explanation is
+/// human-facing text, so it goes to stderr (ADR-001). With `--json` the
+/// versioned object goes to stdout, exactly as in translate mode.
+pub fn render_explain(out: &TranslateOut, opts: RenderOpts) -> i32 {
+    for w in &out.warnings {
+        eprintln!("warning: {w}");
+    }
+
+    if opts.warn_on_risk
+        && let Some(first) = out.candidates.first()
+    {
+        eprint!("{}", format_banner(&out.risk, &first.command, opts.color));
+    }
+
+    if opts.json {
+        match serde_json::to_string(&json_out(out, opts.exit_on_risk)) {
+            Ok(s) => println!("{s}"),
+            Err(e) => {
+                eprintln!("shx: failed to serialize --json: {e}");
+                return EXIT_ERROR;
+            }
+        }
+    } else {
+        // stdout stays empty: prose is not the command channel.
+        if !opts.quiet
+            && let Some(first) = out.candidates.first()
+            && !first.explanation.is_empty()
+        {
+            eprintln!("{}", first.explanation);
+        }
+        if opts.verbose && !out.raw.is_empty() {
+            eprintln!("raw: {}", out.raw);
+        }
+    }
+    if opts.why {
+        eprint!("{}", format_why(out));
+    }
+
+    if opts.exit_on_risk && out.risk.level >= RiskLevel::Review {
+        EXIT_RISK
+    } else {
+        EXIT_OK
+    }
+}
+
 /// Whether stderr should carry ANSI, honoring `NO_COLOR` and `CLICOLOR_FORCE`.
 pub fn color_stderr(mode: ColorMode) -> bool {
     if std::env::var_os("NO_COLOR").is_some() {
