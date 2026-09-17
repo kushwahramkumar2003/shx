@@ -1,0 +1,423 @@
+
+using namespace System.Management.Automation
+using namespace System.Management.Automation.Language
+
+Register-ArgumentCompleter -Native -CommandName 'shx' -ScriptBlock {
+    param($wordToComplete, $commandAst, $cursorPosition)
+
+    $commandElements = $commandAst.CommandElements
+    $command = @(
+        'shx'
+        for ($i = 1; $i -lt $commandElements.Count; $i++) {
+            $element = $commandElements[$i]
+            if ($element -isnot [StringConstantExpressionAst] -or
+                $element.StringConstantType -ne [StringConstantType]::BareWord -or
+                $element.Value.StartsWith('-') -or
+                $element.Value -eq $wordToComplete) {
+                break
+        }
+        $element.Value
+    }) -join ';'
+
+    $completions = @(switch ($command) {
+        'shx' {
+            [CompletionResult]::new('-n', '-n', [CompletionResultType]::ParameterName, 'Return up to N candidates (one command per stdout line)')
+            [CompletionResult]::new('--count', '--count', [CompletionResultType]::ParameterName, 'Return up to N candidates (one command per stdout line)')
+            [CompletionResult]::new('--explain', '--explain', [CompletionResultType]::ParameterName, 'Reverse mode: explain an existing command (T-601)')
+            [CompletionResult]::new('--profile', '--profile', [CompletionResultType]::ParameterName, 'Named context profile')
+            [CompletionResult]::new('--project', '--project', [CompletionResultType]::ParameterName, 'Override project scoping')
+            [CompletionResult]::new('--config', '--config', [CompletionResultType]::ParameterName, 'Alternate config file')
+            [CompletionResult]::new('--json', '--json', [CompletionResultType]::ParameterName, 'Structured JSON object on stdout')
+            [CompletionResult]::new('-i', '-i', [CompletionResultType]::ParameterName, 'Refine session (T-602)')
+            [CompletionResult]::new('--interactive', '--interactive', [CompletionResultType]::ParameterName, 'Refine session (T-602)')
+            [CompletionResult]::new('--why', '--why', [CompletionResultType]::ParameterName, 'Show which memory entries / routing were used (stderr)')
+            [CompletionResult]::new('--local', '--local', [CompletionResultType]::ParameterName, 'Force the local backend')
+            [CompletionResult]::new('--cloud', '--cloud', [CompletionResultType]::ParameterName, 'Force the cloud backend (error if unconfigured)')
+            [CompletionResult]::new('--offline', '--offline', [CompletionResultType]::ParameterName, 'Forbid network; use mock/fixtures')
+            [CompletionResult]::new('--copy', '--copy', [CompletionResultType]::ParameterName, 'Copy the result to the clipboard (T-603)')
+            [CompletionResult]::new('--exit-on-risk', '--exit-on-risk', [CompletionResultType]::ParameterName, 'Exit 3 if risk ≥ Review')
+            [CompletionResult]::new('--no-memory', '--no-memory', [CompletionResultType]::ParameterName, 'Ignore memory for this call')
+            [CompletionResult]::new('--no-color', '--no-color', [CompletionResultType]::ParameterName, 'Disable ANSI on stderr')
+            [CompletionResult]::new('-y', '-y', [CompletionResultType]::ParameterName, 'Skip tool-side prompts (never execution)')
+            [CompletionResult]::new('--yes', '--yes', [CompletionResultType]::ParameterName, 'Skip tool-side prompts (never execution)')
+            [CompletionResult]::new('-v', '-v', [CompletionResultType]::ParameterName, 'Raw model output and full error chains on stderr')
+            [CompletionResult]::new('--verbose', '--verbose', [CompletionResultType]::ParameterName, 'Raw model output and full error chains on stderr')
+            [CompletionResult]::new('-q', '-q', [CompletionResultType]::ParameterName, 'Suppress non-essential stderr')
+            [CompletionResult]::new('--quiet', '--quiet', [CompletionResultType]::ParameterName, 'Suppress non-essential stderr')
+            [CompletionResult]::new('-h', '-h', [CompletionResultType]::ParameterName, 'Print help')
+            [CompletionResult]::new('--help', '--help', [CompletionResultType]::ParameterName, 'Print help')
+            [CompletionResult]::new('-V', '-V ', [CompletionResultType]::ParameterName, 'Print version')
+            [CompletionResult]::new('--version', '--version', [CompletionResultType]::ParameterName, 'Print version')
+            [CompletionResult]::new('doctor', 'doctor', [CompletionResultType]::ParameterValue, 'Self-check config, DB, and backends (T-007)')
+            [CompletionResult]::new('history', 'history', [CompletionResultType]::ParameterValue, 'Browse recorded translations (T-204)')
+            [CompletionResult]::new('snippet', 'snippet', [CompletionResultType]::ParameterValue, 'Named command macros (T-504). Never auto-run as `shx <name>`')
+            [CompletionResult]::new('teach', 'teach', [CompletionResultType]::ParameterValue, 'Teach shorthand vocabulary (T-205)')
+            [CompletionResult]::new('feedback', 'feedback', [CompletionResultType]::ParameterValue, 'Record feedback on an interaction (T-503)')
+            [CompletionResult]::new('config', 'config', [CompletionResultType]::ParameterValue, 'Inspect or edit configuration (T-007)')
+            [CompletionResult]::new('import-history', 'import-history', [CompletionResultType]::ParameterValue, 'Opt-in shell-history ingest (T-605)')
+            [CompletionResult]::new('completion', 'completion', [CompletionResultType]::ParameterValue, 'Generate shell completions (T-604)')
+            [CompletionResult]::new('man', 'man', [CompletionResultType]::ParameterValue, 'Print the man page (T-604)')
+            [CompletionResult]::new('help', 'help', [CompletionResultType]::ParameterValue, 'Print this message or the help of the given subcommand(s)')
+            break
+        }
+        'shx;doctor' {
+            [CompletionResult]::new('--json', '--json', [CompletionResultType]::ParameterName, 'JSON report')
+            [CompletionResult]::new('--redaction-test', '--redaction-test', [CompletionResultType]::ParameterName, 'Run the redaction corpus and report per-pattern pass/fail')
+            [CompletionResult]::new('-h', '-h', [CompletionResultType]::ParameterName, 'Print help')
+            [CompletionResult]::new('--help', '--help', [CompletionResultType]::ParameterName, 'Print help')
+            break
+        }
+        'shx;history' {
+            [CompletionResult]::new('--limit', '--limit', [CompletionResultType]::ParameterName, 'Max rows (list/export)')
+            [CompletionResult]::new('--risk', '--risk', [CompletionResultType]::ParameterName, 'Filter by risk level: safe|review|danger')
+            [CompletionResult]::new('--grep', '--grep', [CompletionResultType]::ParameterName, 'Substring match on input or command')
+            [CompletionResult]::new('--project', '--project', [CompletionResultType]::ParameterName, 'Restrict to the current project_id view')
+            [CompletionResult]::new('--global', '--global', [CompletionResultType]::ParameterName, 'All projects (default)')
+            [CompletionResult]::new('--json', '--json', [CompletionResultType]::ParameterName, 'JSON array on stdout')
+            [CompletionResult]::new('--jsonl', '--jsonl', [CompletionResultType]::ParameterName, 'JSON lines on stdout')
+            [CompletionResult]::new('-h', '-h', [CompletionResultType]::ParameterName, 'Print help')
+            [CompletionResult]::new('--help', '--help', [CompletionResultType]::ParameterName, 'Print help')
+            [CompletionResult]::new('list', 'list', [CompletionResultType]::ParameterValue, 'Newest-first list (default if no subcommand)')
+            [CompletionResult]::new('show', 'show', [CompletionResultType]::ParameterValue, 'Show one interaction')
+            [CompletionResult]::new('export', 'export', [CompletionResultType]::ParameterValue, 'Dump history')
+            [CompletionResult]::new('prune', 'prune', [CompletionResultType]::ParameterValue, 'Apply retention')
+            [CompletionResult]::new('purge', 'purge', [CompletionResultType]::ParameterValue, 'Delete stored interactions')
+            [CompletionResult]::new('help', 'help', [CompletionResultType]::ParameterValue, 'Print this message or the help of the given subcommand(s)')
+            break
+        }
+        'shx;history;list' {
+            [CompletionResult]::new('-h', '-h', [CompletionResultType]::ParameterName, 'Print help')
+            [CompletionResult]::new('--help', '--help', [CompletionResultType]::ParameterName, 'Print help')
+            break
+        }
+        'shx;history;show' {
+            [CompletionResult]::new('--json', '--json', [CompletionResultType]::ParameterName, 'json')
+            [CompletionResult]::new('-h', '-h', [CompletionResultType]::ParameterName, 'Print help')
+            [CompletionResult]::new('--help', '--help', [CompletionResultType]::ParameterName, 'Print help')
+            break
+        }
+        'shx;history;export' {
+            [CompletionResult]::new('--out', '--out', [CompletionResultType]::ParameterName, 'out')
+            [CompletionResult]::new('--json', '--json', [CompletionResultType]::ParameterName, 'json')
+            [CompletionResult]::new('--jsonl', '--jsonl', [CompletionResultType]::ParameterName, 'jsonl')
+            [CompletionResult]::new('-h', '-h', [CompletionResultType]::ParameterName, 'Print help')
+            [CompletionResult]::new('--help', '--help', [CompletionResultType]::ParameterName, 'Print help')
+            break
+        }
+        'shx;history;prune' {
+            [CompletionResult]::new('--older-than', '--older-than', [CompletionResultType]::ParameterName, 'e.g. 180d (days)')
+            [CompletionResult]::new('--keep-danger', '--keep-danger', [CompletionResultType]::ParameterName, 'keep-danger')
+            [CompletionResult]::new('-h', '-h', [CompletionResultType]::ParameterName, 'Print help')
+            [CompletionResult]::new('--help', '--help', [CompletionResultType]::ParameterName, 'Print help')
+            break
+        }
+        'shx;history;purge' {
+            [CompletionResult]::new('--all', '--all', [CompletionResultType]::ParameterName, 'all')
+            [CompletionResult]::new('-h', '-h', [CompletionResultType]::ParameterName, 'Print help')
+            [CompletionResult]::new('--help', '--help', [CompletionResultType]::ParameterName, 'Print help')
+            break
+        }
+        'shx;history;help' {
+            [CompletionResult]::new('list', 'list', [CompletionResultType]::ParameterValue, 'Newest-first list (default if no subcommand)')
+            [CompletionResult]::new('show', 'show', [CompletionResultType]::ParameterValue, 'Show one interaction')
+            [CompletionResult]::new('export', 'export', [CompletionResultType]::ParameterValue, 'Dump history')
+            [CompletionResult]::new('prune', 'prune', [CompletionResultType]::ParameterValue, 'Apply retention')
+            [CompletionResult]::new('purge', 'purge', [CompletionResultType]::ParameterValue, 'Delete stored interactions')
+            [CompletionResult]::new('help', 'help', [CompletionResultType]::ParameterValue, 'Print this message or the help of the given subcommand(s)')
+            break
+        }
+        'shx;history;help;list' {
+            break
+        }
+        'shx;history;help;show' {
+            break
+        }
+        'shx;history;help;export' {
+            break
+        }
+        'shx;history;help;prune' {
+            break
+        }
+        'shx;history;help;purge' {
+            break
+        }
+        'shx;history;help;help' {
+            break
+        }
+        'shx;snippet' {
+            [CompletionResult]::new('-h', '-h', [CompletionResultType]::ParameterName, 'Print help')
+            [CompletionResult]::new('--help', '--help', [CompletionResultType]::ParameterName, 'Print help')
+            [CompletionResult]::new('save', 'save', [CompletionResultType]::ParameterValue, 'Store a named command macro (context for the model; never auto-executed)')
+            [CompletionResult]::new('list', 'list', [CompletionResultType]::ParameterValue, 'List saved snippets (name + command)')
+            [CompletionResult]::new('show', 'show', [CompletionResultType]::ParameterValue, 'Show one snippet. `--copy` prints the command only (stdout)')
+            [CompletionResult]::new('rm', 'rm', [CompletionResultType]::ParameterValue, 'Delete a snippet by name')
+            [CompletionResult]::new('help', 'help', [CompletionResultType]::ParameterValue, 'Print this message or the help of the given subcommand(s)')
+            break
+        }
+        'shx;snippet;save' {
+            [CompletionResult]::new('--command', '--command', [CompletionResultType]::ParameterName, 'Command text to store (redacted at write)')
+            [CompletionResult]::new('-d', '-d', [CompletionResultType]::ParameterName, 'Optional description used when matching intent tokens')
+            [CompletionResult]::new('--description', '--description', [CompletionResultType]::ParameterName, 'Optional description used when matching intent tokens')
+            [CompletionResult]::new('-h', '-h', [CompletionResultType]::ParameterName, 'Print help')
+            [CompletionResult]::new('--help', '--help', [CompletionResultType]::ParameterName, 'Print help')
+            break
+        }
+        'shx;snippet;list' {
+            [CompletionResult]::new('--json', '--json', [CompletionResultType]::ParameterName, 'JSON array on stdout')
+            [CompletionResult]::new('-h', '-h', [CompletionResultType]::ParameterName, 'Print help')
+            [CompletionResult]::new('--help', '--help', [CompletionResultType]::ParameterName, 'Print help')
+            break
+        }
+        'shx;snippet;show' {
+            [CompletionResult]::new('--copy', '--copy', [CompletionResultType]::ParameterName, 'Print the command to stdout (clipboard lands in T-603)')
+            [CompletionResult]::new('--json', '--json', [CompletionResultType]::ParameterName, 'JSON object on stdout')
+            [CompletionResult]::new('-h', '-h', [CompletionResultType]::ParameterName, 'Print help')
+            [CompletionResult]::new('--help', '--help', [CompletionResultType]::ParameterName, 'Print help')
+            break
+        }
+        'shx;snippet;rm' {
+            [CompletionResult]::new('-h', '-h', [CompletionResultType]::ParameterName, 'Print help')
+            [CompletionResult]::new('--help', '--help', [CompletionResultType]::ParameterName, 'Print help')
+            break
+        }
+        'shx;snippet;help' {
+            [CompletionResult]::new('save', 'save', [CompletionResultType]::ParameterValue, 'Store a named command macro (context for the model; never auto-executed)')
+            [CompletionResult]::new('list', 'list', [CompletionResultType]::ParameterValue, 'List saved snippets (name + command)')
+            [CompletionResult]::new('show', 'show', [CompletionResultType]::ParameterValue, 'Show one snippet. `--copy` prints the command only (stdout)')
+            [CompletionResult]::new('rm', 'rm', [CompletionResultType]::ParameterValue, 'Delete a snippet by name')
+            [CompletionResult]::new('help', 'help', [CompletionResultType]::ParameterValue, 'Print this message or the help of the given subcommand(s)')
+            break
+        }
+        'shx;snippet;help;save' {
+            break
+        }
+        'shx;snippet;help;list' {
+            break
+        }
+        'shx;snippet;help;show' {
+            break
+        }
+        'shx;snippet;help;rm' {
+            break
+        }
+        'shx;snippet;help;help' {
+            break
+        }
+        'shx;teach' {
+            [CompletionResult]::new('--forget', '--forget', [CompletionResultType]::ParameterName, 'Term to forget')
+            [CompletionResult]::new('--list', '--list', [CompletionResultType]::ParameterName, 'List vocabulary')
+            [CompletionResult]::new('--json', '--json', [CompletionResultType]::ParameterName, 'JSON list')
+            [CompletionResult]::new('-h', '-h', [CompletionResultType]::ParameterName, 'Print help')
+            [CompletionResult]::new('--help', '--help', [CompletionResultType]::ParameterName, 'Print help')
+            break
+        }
+        'shx;feedback' {
+            [CompletionResult]::new('--note', '--note', [CompletionResultType]::ParameterName, 'note')
+            [CompletionResult]::new('--executed', '--executed', [CompletionResultType]::ParameterName, 'executed')
+            [CompletionResult]::new('--accepted', '--accepted', [CompletionResultType]::ParameterName, 'accepted')
+            [CompletionResult]::new('-h', '-h', [CompletionResultType]::ParameterName, 'Print help')
+            [CompletionResult]::new('--help', '--help', [CompletionResultType]::ParameterName, 'Print help')
+            break
+        }
+        'shx;config' {
+            [CompletionResult]::new('-h', '-h', [CompletionResultType]::ParameterName, 'Print help')
+            [CompletionResult]::new('--help', '--help', [CompletionResultType]::ParameterName, 'Print help')
+            [CompletionResult]::new('path', 'path', [CompletionResultType]::ParameterValue, 'Print discovered config paths (lowest precedence first)')
+            [CompletionResult]::new('show', 'show', [CompletionResultType]::ParameterValue, 'Print the effective merged config')
+            [CompletionResult]::new('get', 'get', [CompletionResultType]::ParameterValue, 'get')
+            [CompletionResult]::new('set', 'set', [CompletionResultType]::ParameterValue, 'set')
+            [CompletionResult]::new('edit', 'edit', [CompletionResultType]::ParameterValue, 'Open the global config in $EDITOR')
+            [CompletionResult]::new('init', 'init', [CompletionResultType]::ParameterValue, 'Write a commented default config')
+            [CompletionResult]::new('help', 'help', [CompletionResultType]::ParameterValue, 'Print this message or the help of the given subcommand(s)')
+            break
+        }
+        'shx;config;path' {
+            [CompletionResult]::new('-h', '-h', [CompletionResultType]::ParameterName, 'Print help')
+            [CompletionResult]::new('--help', '--help', [CompletionResultType]::ParameterName, 'Print help')
+            break
+        }
+        'shx;config;show' {
+            [CompletionResult]::new('--json', '--json', [CompletionResultType]::ParameterName, 'JSON object on stdout')
+            [CompletionResult]::new('-h', '-h', [CompletionResultType]::ParameterName, 'Print help')
+            [CompletionResult]::new('--help', '--help', [CompletionResultType]::ParameterName, 'Print help')
+            break
+        }
+        'shx;config;get' {
+            [CompletionResult]::new('-h', '-h', [CompletionResultType]::ParameterName, 'Print help')
+            [CompletionResult]::new('--help', '--help', [CompletionResultType]::ParameterName, 'Print help')
+            break
+        }
+        'shx;config;set' {
+            [CompletionResult]::new('-h', '-h', [CompletionResultType]::ParameterName, 'Print help')
+            [CompletionResult]::new('--help', '--help', [CompletionResultType]::ParameterName, 'Print help')
+            break
+        }
+        'shx;config;edit' {
+            [CompletionResult]::new('-h', '-h', [CompletionResultType]::ParameterName, 'Print help')
+            [CompletionResult]::new('--help', '--help', [CompletionResultType]::ParameterName, 'Print help')
+            break
+        }
+        'shx;config;init' {
+            [CompletionResult]::new('--force', '--force', [CompletionResultType]::ParameterName, 'Overwrite an existing file')
+            [CompletionResult]::new('-h', '-h', [CompletionResultType]::ParameterName, 'Print help')
+            [CompletionResult]::new('--help', '--help', [CompletionResultType]::ParameterName, 'Print help')
+            break
+        }
+        'shx;config;help' {
+            [CompletionResult]::new('path', 'path', [CompletionResultType]::ParameterValue, 'Print discovered config paths (lowest precedence first)')
+            [CompletionResult]::new('show', 'show', [CompletionResultType]::ParameterValue, 'Print the effective merged config')
+            [CompletionResult]::new('get', 'get', [CompletionResultType]::ParameterValue, 'get')
+            [CompletionResult]::new('set', 'set', [CompletionResultType]::ParameterValue, 'set')
+            [CompletionResult]::new('edit', 'edit', [CompletionResultType]::ParameterValue, 'Open the global config in $EDITOR')
+            [CompletionResult]::new('init', 'init', [CompletionResultType]::ParameterValue, 'Write a commented default config')
+            [CompletionResult]::new('help', 'help', [CompletionResultType]::ParameterValue, 'Print this message or the help of the given subcommand(s)')
+            break
+        }
+        'shx;config;help;path' {
+            break
+        }
+        'shx;config;help;show' {
+            break
+        }
+        'shx;config;help;get' {
+            break
+        }
+        'shx;config;help;set' {
+            break
+        }
+        'shx;config;help;edit' {
+            break
+        }
+        'shx;config;help;init' {
+            break
+        }
+        'shx;config;help;help' {
+            break
+        }
+        'shx;import-history' {
+            [CompletionResult]::new('--shell', '--shell', [CompletionResultType]::ParameterName, 'shell')
+            [CompletionResult]::new('--file', '--file', [CompletionResultType]::ParameterName, 'file')
+            [CompletionResult]::new('--limit', '--limit', [CompletionResultType]::ParameterName, 'limit')
+            [CompletionResult]::new('--dry-run', '--dry-run', [CompletionResultType]::ParameterName, 'dry-run')
+            [CompletionResult]::new('-h', '-h', [CompletionResultType]::ParameterName, 'Print help')
+            [CompletionResult]::new('--help', '--help', [CompletionResultType]::ParameterName, 'Print help')
+            break
+        }
+        'shx;completion' {
+            [CompletionResult]::new('-h', '-h', [CompletionResultType]::ParameterName, 'Print help')
+            [CompletionResult]::new('--help', '--help', [CompletionResultType]::ParameterName, 'Print help')
+            break
+        }
+        'shx;man' {
+            [CompletionResult]::new('-h', '-h', [CompletionResultType]::ParameterName, 'Print help')
+            [CompletionResult]::new('--help', '--help', [CompletionResultType]::ParameterName, 'Print help')
+            break
+        }
+        'shx;help' {
+            [CompletionResult]::new('doctor', 'doctor', [CompletionResultType]::ParameterValue, 'Self-check config, DB, and backends (T-007)')
+            [CompletionResult]::new('history', 'history', [CompletionResultType]::ParameterValue, 'Browse recorded translations (T-204)')
+            [CompletionResult]::new('snippet', 'snippet', [CompletionResultType]::ParameterValue, 'Named command macros (T-504). Never auto-run as `shx <name>`')
+            [CompletionResult]::new('teach', 'teach', [CompletionResultType]::ParameterValue, 'Teach shorthand vocabulary (T-205)')
+            [CompletionResult]::new('feedback', 'feedback', [CompletionResultType]::ParameterValue, 'Record feedback on an interaction (T-503)')
+            [CompletionResult]::new('config', 'config', [CompletionResultType]::ParameterValue, 'Inspect or edit configuration (T-007)')
+            [CompletionResult]::new('import-history', 'import-history', [CompletionResultType]::ParameterValue, 'Opt-in shell-history ingest (T-605)')
+            [CompletionResult]::new('completion', 'completion', [CompletionResultType]::ParameterValue, 'Generate shell completions (T-604)')
+            [CompletionResult]::new('man', 'man', [CompletionResultType]::ParameterValue, 'Print the man page (T-604)')
+            [CompletionResult]::new('help', 'help', [CompletionResultType]::ParameterValue, 'Print this message or the help of the given subcommand(s)')
+            break
+        }
+        'shx;help;doctor' {
+            break
+        }
+        'shx;help;history' {
+            [CompletionResult]::new('list', 'list', [CompletionResultType]::ParameterValue, 'Newest-first list (default if no subcommand)')
+            [CompletionResult]::new('show', 'show', [CompletionResultType]::ParameterValue, 'Show one interaction')
+            [CompletionResult]::new('export', 'export', [CompletionResultType]::ParameterValue, 'Dump history')
+            [CompletionResult]::new('prune', 'prune', [CompletionResultType]::ParameterValue, 'Apply retention')
+            [CompletionResult]::new('purge', 'purge', [CompletionResultType]::ParameterValue, 'Delete stored interactions')
+            break
+        }
+        'shx;help;history;list' {
+            break
+        }
+        'shx;help;history;show' {
+            break
+        }
+        'shx;help;history;export' {
+            break
+        }
+        'shx;help;history;prune' {
+            break
+        }
+        'shx;help;history;purge' {
+            break
+        }
+        'shx;help;snippet' {
+            [CompletionResult]::new('save', 'save', [CompletionResultType]::ParameterValue, 'Store a named command macro (context for the model; never auto-executed)')
+            [CompletionResult]::new('list', 'list', [CompletionResultType]::ParameterValue, 'List saved snippets (name + command)')
+            [CompletionResult]::new('show', 'show', [CompletionResultType]::ParameterValue, 'Show one snippet. `--copy` prints the command only (stdout)')
+            [CompletionResult]::new('rm', 'rm', [CompletionResultType]::ParameterValue, 'Delete a snippet by name')
+            break
+        }
+        'shx;help;snippet;save' {
+            break
+        }
+        'shx;help;snippet;list' {
+            break
+        }
+        'shx;help;snippet;show' {
+            break
+        }
+        'shx;help;snippet;rm' {
+            break
+        }
+        'shx;help;teach' {
+            break
+        }
+        'shx;help;feedback' {
+            break
+        }
+        'shx;help;config' {
+            [CompletionResult]::new('path', 'path', [CompletionResultType]::ParameterValue, 'Print discovered config paths (lowest precedence first)')
+            [CompletionResult]::new('show', 'show', [CompletionResultType]::ParameterValue, 'Print the effective merged config')
+            [CompletionResult]::new('get', 'get', [CompletionResultType]::ParameterValue, 'get')
+            [CompletionResult]::new('set', 'set', [CompletionResultType]::ParameterValue, 'set')
+            [CompletionResult]::new('edit', 'edit', [CompletionResultType]::ParameterValue, 'Open the global config in $EDITOR')
+            [CompletionResult]::new('init', 'init', [CompletionResultType]::ParameterValue, 'Write a commented default config')
+            break
+        }
+        'shx;help;config;path' {
+            break
+        }
+        'shx;help;config;show' {
+            break
+        }
+        'shx;help;config;get' {
+            break
+        }
+        'shx;help;config;set' {
+            break
+        }
+        'shx;help;config;edit' {
+            break
+        }
+        'shx;help;config;init' {
+            break
+        }
+        'shx;help;import-history' {
+            break
+        }
+        'shx;help;completion' {
+            break
+        }
+        'shx;help;man' {
+            break
+        }
+        'shx;help;help' {
+            break
+        }
+    })
+
+    $completions.Where{ $_.CompletionText -like "$wordToComplete*" } |
+        Sort-Object -Property ListItemText
+}

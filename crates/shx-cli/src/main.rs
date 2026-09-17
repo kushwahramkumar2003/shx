@@ -337,6 +337,7 @@ fn dispatch(cli: Cli) -> anyhow::Result<i32> {
             Commands::Teach { .. } => commands::teach::run(&cli),
             Commands::Snippet { .. } => commands::snippet::run(&cli),
             Commands::Feedback { .. } => commands::feedback::run(&cli),
+            Commands::Completion { .. } | Commands::Man => commands::completion::run(&cli),
             other => stub_command(other),
         });
     }
@@ -396,10 +397,10 @@ fn stub_command(cmd: &Commands) -> i32 {
         | Commands::History { .. }
         | Commands::Teach { .. }
         | Commands::Snippet { .. }
-        | Commands::Feedback { .. } => unreachable!("dispatched above"),
+        | Commands::Feedback { .. }
+        | Commands::Completion { .. }
+        | Commands::Man => unreachable!("dispatched above"),
         Commands::ImportHistory { .. } => "import-history",
-        Commands::Completion { .. } => "completion",
-        Commands::Man => "man",
     };
     eprintln!("shx {name}: not implemented yet");
     EXIT_ERROR

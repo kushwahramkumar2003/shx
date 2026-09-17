@@ -1,6 +1,7 @@
 //! Subcommand implementations.
 
 pub mod chat;
+pub mod completion;
 pub mod config;
 pub mod doctor;
 pub mod explain;

@@ -1,0 +1,108 @@
+.ie \n(.g .ds Aq \(aq
+.el .ds Aq '
+.TH shx 1  "shx 0.0.0" 
+.SH NAME
+shx \- Print\-only natural\-language to shell\-command translator
+.SH SYNOPSIS
+\fBshx\fR [\fB\-n\fR|\fB\-\-count\fR] [\fB\-\-json\fR] [\fB\-\-explain\fR] [\fB\-i\fR|\fB\-\-interactive\fR] [\fB\-\-why\fR] [\fB\-\-local\fR] [\fB\-\-cloud\fR] [\fB\-\-offline\fR] [\fB\-\-copy\fR] [\fB\-\-exit\-on\-risk\fR] [\fB\-\-no\-memory\fR] [\fB\-\-no\-color\fR] [\fB\-\-profile\fR] [\fB\-\-project\fR] [\fB\-y\fR|\fB\-\-yes\fR] [\fB\-v\fR|\fB\-\-verbose\fR] [\fB\-q\fR|\fB\-\-quiet\fR] [\fB\-\-config\fR] [\fB\-h\fR|\fB\-\-help\fR] [\fB\-V\fR|\fB\-\-version\fR] [\fIINTENT\fR] [\fIsubcommands\fR]
+.SH DESCRIPTION
+Print\-only natural\-language to shell\-command translator
+.SH OPTIONS
+.TP
+\fB\-n\fR, \fB\-\-count\fR \fI<N>\fR
+Return up to N candidates (one command per stdout line)
+.TP
+\fB\-\-json\fR
+Structured JSON object on stdout
+.TP
+\fB\-\-explain\fR \fI<CMD>\fR
+Reverse mode: explain an existing command (T\-601)
+.TP
+\fB\-i\fR, \fB\-\-interactive\fR
+Refine session (T\-602)
+.TP
+\fB\-\-why\fR
+Show which memory entries / routing were used (stderr)
+.TP
+\fB\-\-local\fR
+Force the local backend
+.TP
+\fB\-\-cloud\fR
+Force the cloud backend (error if unconfigured)
+.TP
+\fB\-\-offline\fR
+Forbid network; use mock/fixtures
+.TP
+\fB\-\-copy\fR
+Copy the result to the clipboard (T\-603)
+.TP
+\fB\-\-exit\-on\-risk\fR
+Exit 3 if risk ≥ Review
+.TP
+\fB\-\-no\-memory\fR
+Ignore memory for this call
+.TP
+\fB\-\-no\-color\fR
+Disable ANSI on stderr
+.TP
+\fB\-\-profile\fR \fI<NAME>\fR
+Named context profile
+.TP
+\fB\-\-project\fR \fI<PATH>\fR
+Override project scoping
+.TP
+\fB\-y\fR, \fB\-\-yes\fR
+Skip tool\-side prompts (never execution)
+.TP
+\fB\-v\fR, \fB\-\-verbose\fR
+Raw model output and full error chains on stderr
+.TP
+\fB\-q\fR, \fB\-\-quiet\fR
+Suppress non\-essential stderr
+.TP
+\fB\-\-config\fR \fI<PATH>\fR
+Alternate config file
+.TP
+\fB\-h\fR, \fB\-\-help\fR
+Print help
+.TP
+\fB\-V\fR, \fB\-\-version\fR
+Print version
+.TP
+[\fIINTENT\fR]
+Natural\-language intent (joined with spaces)
+.SH SUBCOMMANDS
+.TP
+shx\-doctor(1)
+Self\-check config, DB, and backends (T\-007)
+.TP
+shx\-history(1)
+Browse recorded translations (T\-204)
+.TP
+shx\-snippet(1)
+Named command macros (T\-504). Never auto\-run as `shx <name>`
+.TP
+shx\-teach(1)
+Teach shorthand vocabulary (T\-205)
+.TP
+shx\-feedback(1)
+Record feedback on an interaction (T\-503)
+.TP
+shx\-config(1)
+Inspect or edit configuration (T\-007)
+.TP
+shx\-import\-history(1)
+Opt\-in shell\-history ingest (T\-605)
+.TP
+shx\-completion(1)
+Generate shell completions (T\-604)
+.TP
+shx\-man(1)
+Print the man page (T\-604)
+.TP
+shx\-help(1)
+Print this message or the help of the given subcommand(s)
+.SH EXTRA
+stdout is the command only; explanations and warnings go to stderr.
+.SH VERSION
+v0.0.0
