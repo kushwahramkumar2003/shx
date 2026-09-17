@@ -45,6 +45,48 @@ pub struct RenderOpts {
     pub warn_on_risk: bool,
     /// Emit ANSI on stderr.
     pub color: bool,
+    /// `--copy` — also copy the first candidate to the system clipboard.
+    pub copy: bool,
+}
+
+/// Copy `text` to the system clipboard.
+///
+/// With the `clipboard` feature this uses arboard; without it every call
+/// fails with a build-support message (the flag stays accepted so scripts
+/// keep working and stdout stays pure). Runtime failures (e.g. headless CI
+/// with no display server) also return `Err`: callers degrade to a stderr
+/// warning and keep exit 0 — copy is auxiliary, the printed command is the
+/// result.
+pub fn copy_to_clipboard(text: &str) -> Result<(), String> {
+    #[cfg(feature = "clipboard")]
+    {
+        let mut board =
+            arboard::Clipboard::new().map_err(|e| format!("clipboard unavailable: {e}"))?;
+        board
+            .set_text(text.to_string())
+            .map_err(|e| format!("clipboard copy failed: {e}"))?;
+        Ok(())
+    }
+    #[cfg(not(feature = "clipboard"))]
+    {
+        let _ = text;
+        Err("built without clipboard support (rebuild with --features clipboard)".into())
+    }
+}
+
+/// Attempt the `--copy` side effect for the first candidate, if any.
+/// Never touches stdout; failures degrade to a stderr warning so the
+/// printed command (the real result) still exits 0.
+fn maybe_copy(out: &TranslateOut, copy: bool) {
+    if !copy {
+        return;
+    }
+    let Some(first) = out.candidates.first() else {
+        return;
+    };
+    if let Err(e) = copy_to_clipboard(&first.command) {
+        eprintln!("warning: --copy ignored: {e}");
+    }
 }
 
 /// Write the translation and return the process exit code.
@@ -95,6 +137,7 @@ pub fn render(out: &TranslateOut, opts: RenderOpts) -> i32 {
             eprintln!("raw: {}", out.raw);
         }
     }
+    maybe_copy(out, opts.copy);
     if opts.why {
         eprint!("{}", format_why(out));
     }
@@ -142,6 +185,7 @@ pub fn render_explain(out: &TranslateOut, opts: RenderOpts) -> i32 {
             eprintln!("raw: {}", out.raw);
         }
     }
+    maybe_copy(out, opts.copy);
     if opts.why {
         eprint!("{}", format_why(out));
     }
@@ -434,5 +478,22 @@ mod tests {
     #[test]
     fn color_never_and_no_color_env() {
         assert!(!color_stderr(ColorMode::Never));
+    }
+
+    /// Without the feature every call fails with a build-support message.
+    #[cfg(not(feature = "clipboard"))]
+    #[test]
+    fn copy_without_feature_is_an_explained_error() {
+        let e = copy_to_clipboard("echo hi").expect_err("copy must fail without the feature");
+        assert!(e.contains("clipboard"), "{e}");
+        assert!(e.contains("without clipboard support"), "{e}");
+    }
+
+    /// With the feature the call only needs to return: headless CI has no
+    /// display server, so success is machine-dependent and unassertable.
+    #[cfg(feature = "clipboard")]
+    #[test]
+    fn copy_with_feature_returns() {
+        let _ = copy_to_clipboard("echo hi");
     }
 }

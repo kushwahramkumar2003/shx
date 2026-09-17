@@ -70,6 +70,7 @@ pub fn run(cli: &Cli) -> i32 {
         exit_on_risk: loaded.config.safety.exit_on_risk,
         warn_on_risk: loaded.config.safety.warn_on_risk,
         color: color_stderr(loaded.config.ui.color),
+        copy: cli.copy,
     };
     let session_id = new_session_id();
     let mut code = EXIT_USAGE;

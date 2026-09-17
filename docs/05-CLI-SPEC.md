@@ -70,6 +70,12 @@ $ shx --explain "find . -name '*.log' -mtime +7 -delete"
 Deletes .log files in this tree not modified in 7 days. Risk: REVIEW (irreversible delete).
 ```
 
+With `-n`, candidates beyond what the backend returned are simply absent
+(requesting 3 of 1 prints 1 line). `--copy` copies the first (top-ranked)
+candidate to the system clipboard *in addition to* printing stdout: without
+the `clipboard` build feature, or with no display server available, it
+degrades to a stderr warning and exit 0 — stdout is never affected.
+
 ## 3. Subcommands
 
 ### `shx doctor [--redaction-test] [--json]`
@@ -110,9 +116,8 @@ snippets (name or description vs intent tokens, max 3) enter the
 behavior) and is never executed: a bare invocation is always treated as
 natural-language intent. Retrieve the command explicitly with
 `shx snippet show <name> --copy` (command only on stdout, so `| pbcopy`
-works). Clipboard copy of `--copy` lands with the `clipboard` feature
-(T-603); until then `--copy` still prints the command to stdout and does
-not run it.
+works). With the `clipboard` build feature `--copy` also attempts the
+system clipboard; the command is always printed regardless.
 
 `save` redacts `command` and `description` before insert. Re-saving the
 same name updates the stored command. `rm` of a missing name is an error

@@ -15,6 +15,14 @@ While pre-1.0, breaking changes bump the **minor** version and are called out un
 
 ### Added
 
+- `-n/--count` candidates and `--copy`: `-n 3` prints one command per stdout
+  line (ranked best first; fewer lines when the backend returns fewer).
+  `--copy` also copies the top-ranked candidate to the system clipboard via
+  arboard (optional `clipboard` feature, on by default) — in translate,
+  `--explain`, `-i`, and `snippet show` modes. Without the feature, or with
+  no display server, it degrades to a stderr warning and exit 0; stdout is
+  never affected. The mock backend scripts the three spec §2 postgres
+  alternatives for `-n` coverage (T-603, unblocks T-606).
 - `shx -i` refine sessions: the initial intent comes from argv and each
   follow-up line from stdin; every turn runs the same pipeline and records
   under one shared `session_id`, so later turns see earlier ones as context.

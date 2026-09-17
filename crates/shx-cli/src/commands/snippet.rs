@@ -151,9 +151,12 @@ fn emit_show(s: &Snippet, copy: bool, json: bool) -> i32 {
     }
     let cmd = s.command.trim_end_matches('\n');
     if copy {
-        // Command channel only. Clipboard wiring is T-603; stdout is the
-        // copy path (`shx snippet show <name> --copy | pbcopy`). Never exec.
+        // Command channel only (`shx snippet show <name> --copy | pbcopy`);
+        // the clipboard attempt is best-effort on top. Never exec.
         println!("{cmd}");
+        if let Err(e) = crate::render::copy_to_clipboard(cmd) {
+            eprintln!("warning: --copy ignored: {e}");
+        }
         return EXIT_OK;
     }
     println!("{}\t{cmd}", s.name);
