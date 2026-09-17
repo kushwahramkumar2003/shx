@@ -15,6 +15,12 @@ While pre-1.0, breaking changes bump the **minor** version and are called out un
 
 ### Added
 
+- `shx --explain "<command>"` reverse mode: sends the command to the
+  configured backend (local-first routing, `--local`/`--cloud`/`--offline`
+  honored) and prints the returned prose plus the risk banner to stderr.
+  stdout stays empty except with `--json` (versioned object with
+  `commands[0].command` set to the input verbatim). Never refuses, never
+  reads or writes memory, never executes (T-601).
 - T6 eval harness (`cargo run -p shx-eval`): scores the 20 intents in
   `tools/eval/fixtures/translate.json` through mock (offline, deterministic)
   or live Ollama (`--live`) backends, reporting exact/regex/acceptable

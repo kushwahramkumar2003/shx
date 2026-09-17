@@ -102,12 +102,10 @@ impl std::fmt::Display for PipelineError {
     }
 }
 
-/// Run the T-006 pipeline: config → mock (offline only) → candidates.
-pub fn run(
-    cli: &Cli,
-    config: &Config,
-    warnings: Vec<String>,
-) -> Result<TranslateOut, PipelineError> {
+/// Shared `--local` / `--cloud` / `--offline` precondition (exit 2 on
+/// conflict or unconfigured cloud). Used by the translate pipeline and by
+/// `--explain` so flag errors behave identically.
+pub(crate) fn check_routing_flags(cli: &Cli, config: &Config) -> Result<(), PipelineError> {
     if cli.local && cli.cloud {
         return Err(PipelineError::Usage(
             "--local and --cloud cannot be used together".into(),
@@ -121,6 +119,16 @@ pub fn run(
     if cli.cloud {
         ensure_cloud_configured(config)?;
     }
+    Ok(())
+}
+
+/// Run the T-006 pipeline: config → mock (offline only) → candidates.
+pub fn run(
+    cli: &Cli,
+    config: &Config,
+    warnings: Vec<String>,
+) -> Result<TranslateOut, PipelineError> {
+    check_routing_flags(cli, config)?;
 
     let text = resolve_intent(cli)?;
     let count = cli.count.unwrap_or(config.ui.candidates);
@@ -361,7 +369,7 @@ pub fn run(
     })
 }
 
-fn build_router(cli: &Cli, config: &Config) -> BackendRouter {
+pub(crate) fn build_router(cli: &Cli, config: &Config) -> BackendRouter {
     let mode = route_mode(cli, config);
     let cfg = RouterConfig {
         mode,
@@ -633,7 +641,9 @@ fn resolve_intent(cli: &Cli) -> Result<String, PipelineError> {
     Ok(line.to_string())
 }
 
-fn empty_bundle(cfg: &Config, cli: &Cli) -> (ContextBundle, Option<String>) {
+/// Environment + profile bundle with no history (used by `--explain`, which
+/// never reads memory).
+pub(crate) fn empty_bundle(cfg: &Config, cli: &Cli) -> (ContextBundle, Option<String>) {
     let os = if cfg.context.os == "auto" {
         match env::consts::OS {
             "macos" | "linux" | "windows" => env::consts::OS.to_string(),
