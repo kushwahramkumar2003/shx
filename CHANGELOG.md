@@ -15,6 +15,13 @@ While pre-1.0, breaking changes bump the **minor** version and are called out un
 
 ### Added
 
+- `shx import-history --shell zsh|bash|fish [--file <path>] [--limit N]
+  [--dry-run]`: opt-in ingest into `Scope::Shell` (extended + plain zsh with
+  backslash-continuation unfolding, bash `HISTTIMEFORMAT` timestamps,
+  fish `cmd`/`when` stanzas). Redacts every line before insert, prints
+  `imported N, redacted M, skipped K malformed` to stderr (stdout stays
+  empty); `--dry-run` parses and counts without opening the database.
+  `--shell` defaults to `$SHELL`; `--limit` keeps the most recent N (T-605).
 - `shx completion <shell>` (bash/zsh/fish/powershell/elvish) and `shx man`:
   both generated from the clap definition so they cannot drift.
   Pre-generated snapshots live at `contrib/completions/shx.*` and `man/shx.1`

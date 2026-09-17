@@ -663,8 +663,11 @@ tasks:
     deliverables: [shx-cli/src/commands/import_history.rs]
     acceptance:
       - redacts before insert; summary printed; --dry-run writes nothing
-    status: pending
-    owner: null
+    notes: verify=cargo xtask ci green (9/9); 11 import_history unit + 10 import_history CLI tests (DB-asserted redaction). Pure parsers per shell; frozen MemoryStore untouched (inherent record_shell); last subcommand stub removed. Unblocks nothing.
+    status: completed
+    owner: muse-spark
+    branch: feat/t-605-import-history
+    pr_url: local-only (no remote)
 
   - id: T-606
     title: Shell wrappers (zsh ZLE + bash readline)
