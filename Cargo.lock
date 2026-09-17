@@ -662,6 +662,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "shx-eval"
+version = "0.0.0"
+dependencies = [
+ "clap",
+ "serde",
+ "serde_json",
+ "shx-core",
+ "shx-llm",
+ "shx-memory",
+ "thiserror",
+]
+
+[[package]]
 name = "shx-llm"
 version = "0.0.0"
 dependencies = [

@@ -15,6 +15,13 @@ While pre-1.0, breaking changes bump the **minor** version and are called out un
 
 ### Added
 
+- T6 eval harness (`cargo run -p shx-eval`): scores the 20 intents in
+  `tools/eval/fixtures/translate.json` through mock (offline, deterministic)
+  or live Ollama (`--live`) backends, reporting exact/regex/acceptable
+  rates, risk-misclassification count, p50/p95 latency, token usage, and
+  cache-hit rate as a table or `--json`. `--min-exact` gates regressions;
+  `.github/workflows/eval.yml` runs it on prompt/backend paths; the offline
+  baseline table is in the README benchmarks section (T-506).
 - `shx feedback <id> good|bad [--note ...] [--executed] [--accepted]` records
   acceptance, execution, and implicit vocabulary learning: `good` bumps every
   retriever token in the intent (`+0.5`, capped at `3.0`, creating `Learned`

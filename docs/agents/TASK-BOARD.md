@@ -469,6 +469,8 @@ backend paths.
 **Acceptance:** running it produces the metrics table used in the README;
 a prompt regression that drops exact-match rate is visible in one command.
 
+**Status:** completed (local-only). Completes Wave 7 (M5).
+
 ---
 
 ## Wave 8 — M6 UX & packaging

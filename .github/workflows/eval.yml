@@ -1,0 +1,51 @@
+# T6 eval harness (docs/08-TESTING.md §7, task T-506).
+# Runs on prompt/backend paths: self-tests plus a deterministic offline run
+# over tools/eval/fixtures/translate.json. Offline uses MockBackend (no
+# network); live quality runs are manual (see tools/eval/README.md).
+name: eval
+
+on:
+  pull_request:
+    paths:
+      - "crates/shx-core/src/prompt.rs"
+      - "crates/shx-core/src/parse.rs"
+      - "crates/shx-llm/**"
+      - "tools/eval/**"
+  push:
+    branches: [main]
+    paths:
+      - "crates/shx-core/src/prompt.rs"
+      - "crates/shx-core/src/parse.rs"
+      - "crates/shx-llm/**"
+      - "tools/eval/**"
+
+jobs:
+  eval:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust (pinned by rust-toolchain.toml)
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: "1.95.0"
+
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Harness self-tests
+        run: cargo test -p shx-eval
+
+      - name: Offline eval (mock backend, no network)
+        run: |
+          cargo run -p shx-eval -- \
+            --fixtures tools/eval/fixtures/translate.json \
+            --min-exact 0 | tee eval-table.txt
+
+      - name: Publish table to the job summary
+        if: always()
+        run: |
+          {
+            echo '```'
+            cat eval-table.txt
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"

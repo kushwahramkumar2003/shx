@@ -582,8 +582,11 @@ tasks:
     acceptance:
       - scores translate.json (exact/regex/acceptable, risk-misclassification, latency, cache-hit)
       - CI job on prompt/backend paths; metrics table used in README
-    status: pending
-    owner: null
+    notes: verify=cargo xtask ci green (9/9); 18 shx-eval tests (scoring tiers/glob/schema/percentiles, 3-pass cache, error continuation, risk escalation, shipped-fixture parse); offline baseline exact 0/20 regex 1/20 cache 20/40 risk 0 errors 0. Frozen traits untouched; no new deps; T-SAFE-3 green. Completes Wave 7 (M5).
+    status: completed
+    owner: muse-spark
+    branch: feat/t-506-eval-harness
+    pr_url: local-only (no remote)
 
   # ── Wave 8 · M6 UX & packaging ───────────────────────────────────────────
   - id: T-601

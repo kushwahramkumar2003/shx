@@ -7,6 +7,7 @@ members = [
     "crates/shx-config",
     "crates/shx-cli",
     "xtask",
+    "tools/eval",
 ]
 
 [workspace.package]
