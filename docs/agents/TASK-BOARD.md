@@ -432,6 +432,8 @@ columns updated.
 **Acceptance:** `good` raises weights (cap 3.0), `bad` lowers or does not raise;
 `--executed` sets `executed=1`; decay deterministic.
 
+**Status:** completed (local-only). Leaf task — unblocks nothing.
+
 ### T-504 — Snippets · CLI/UX · M
 
 **Deps:** T-201

@@ -6,8 +6,8 @@ use std::time::Duration;
 
 use rusqlite::{Connection, OptionalExtension, Row, params};
 use shx_core::{
-    Interaction, PrunePolicy, PruneReport, RiskLevel, Scope, Snippet, Verdict, VocabEntry,
-    VocabSource,
+    Interaction, PrunePolicy, PruneReport, Redactor, RiskLevel, Scope, SecretRedactor, Snippet,
+    Verdict, VocabEntry, VocabSource,
 };
 
 use crate::paths::{ensure_parent, restrict_file};
@@ -186,6 +186,178 @@ impl SqliteStore {
         Ok(crate::cache::find_cache_hit_in_interactions(&list, query))
     }
 
+    /// Fetch one interaction by id (alias for [`SqliteStore::get`]).
+    pub fn get_interaction(&self, id: i64) -> Result<Option<Interaction>> {
+        self.get(id)
+    }
+
+    /// Set `executed` without touching any other column.
+    pub fn set_executed(&self, id: i64, executed: bool) -> Result<()> {
+        let conn = self.lock()?;
+        let n = conn.execute(
+            "UPDATE interactions SET executed = ?1 WHERE id = ?2",
+            params![i64::from(executed), id],
+        )?;
+        if n == 0 {
+            return Err(MemoryError::Message(format!("no interaction {id}")));
+        }
+        Ok(())
+    }
+
+    /// Set `accepted` without touching vocabulary (used by `--accepted`).
+    pub fn set_accepted(&self, id: i64, accepted: bool) -> Result<()> {
+        let conn = self.lock()?;
+        let n = conn.execute(
+            "UPDATE interactions SET accepted = ?1 WHERE id = ?2",
+            params![i64::from(accepted), id],
+        )?;
+        if n == 0 {
+            return Err(MemoryError::Message(format!("no interaction {id}")));
+        }
+        Ok(())
+    }
+
+    /// Record `verdict` at `now_ms` and update vocabulary weights.
+    ///
+    /// Same semantics as `InMemoryStore::feedback_at`: `good` sets
+    /// `accepted = 1` and bumps matching vocabulary rows (`+0.5`, capped at
+    /// `3.0`, creating `Learned` rows at `0.5` for new terms); `bad` sets
+    /// `accepted = 0` and lowers matching rows (`-0.5`, floored at `0.0`)
+    /// without creating rows. The `note` is redacted before insert into the
+    /// `feedback` table. Returns vocabulary rows created or updated.
+    pub fn feedback_at(
+        &self,
+        interaction_id: i64,
+        verdict: Verdict,
+        note: Option<&str>,
+        now_ms: i64,
+    ) -> Result<u64> {
+        let conn = self.lock()?;
+        let input: String = conn
+            .query_row(
+                "SELECT input_nl FROM interactions WHERE id = ?1",
+                params![interaction_id],
+                |r| r.get(0),
+            )
+            .optional()?
+            .ok_or_else(|| MemoryError::Message(format!("no interaction {interaction_id}")))?;
+        let accepted = match verdict {
+            Verdict::Good => 1i64,
+            Verdict::Bad => 0,
+        };
+        conn.execute(
+            "UPDATE interactions SET accepted = ?1 WHERE id = ?2",
+            params![accepted, interaction_id],
+        )?;
+        let redacted_note = note.map(|n| SecretRedactor.redact(n).into_owned());
+        conn.execute(
+            "INSERT INTO feedback (interaction_id, verdict, note, ts) VALUES (?1,?2,?3,?4)",
+            params![
+                interaction_id,
+                match verdict {
+                    Verdict::Good => "good",
+                    Verdict::Bad => "bad",
+                },
+                redacted_note,
+                now_ms,
+            ],
+        )?;
+        let terms = crate::vocab::extract_terms(&input);
+        if terms.is_empty() {
+            return Ok(0);
+        }
+        let mut touched = 0u64;
+        match verdict {
+            Verdict::Good => {
+                for term in &terms {
+                    let mut stmt = conn.prepare(
+                        "SELECT term, expansion, weight, source, last_used_ts, use_count
+                         FROM vocabulary WHERE term = ?1",
+                    )?;
+                    let rows = stmt
+                        .query_map(params![term], |row| {
+                            Ok(VocabEntry {
+                                term: row.get(0)?,
+                                expansion: row.get(1)?,
+                                weight: row.get(2)?,
+                                source: parse_source(row.get(3)?),
+                                last_used_ts: row.get(4)?,
+                                use_count: row.get::<_, i64>(5)? as u64,
+                            })
+                        })?
+                        .collect::<rusqlite::Result<Vec<_>>>()?;
+                    if rows.is_empty() {
+                        let e = crate::vocab::apply_good(None, term, now_ms);
+                        conn.execute(
+                            "INSERT INTO vocabulary (term, expansion, weight, source, last_used_ts, use_count)
+                             VALUES (?1,?2,?3,?4,?5,?6)
+                             ON CONFLICT(term, expansion) DO UPDATE SET
+                               weight=excluded.weight,
+                               source=excluded.source,
+                               last_used_ts=excluded.last_used_ts,
+                               use_count=excluded.use_count",
+                            params![
+                                e.term,
+                                e.expansion,
+                                e.weight,
+                                source_str(e.source),
+                                e.last_used_ts,
+                                e.use_count as i64,
+                            ],
+                        )?;
+                        touched += 1;
+                    } else {
+                        for existing in &rows {
+                            let next = crate::vocab::apply_good(Some(existing), term, now_ms);
+                            conn.execute(
+                                "UPDATE vocabulary SET weight = ?1, last_used_ts = ?2, use_count = ?3
+                                 WHERE term = ?4 AND expansion = ?5",
+                                params![
+                                    next.weight,
+                                    next.last_used_ts,
+                                    next.use_count as i64,
+                                    next.term,
+                                    next.expansion,
+                                ],
+                            )?;
+                            touched += 1;
+                        }
+                    }
+                }
+            }
+            Verdict::Bad => {
+                for term in &terms {
+                    let mut stmt = conn.prepare(
+                        "SELECT term, expansion, weight, source, last_used_ts, use_count
+                         FROM vocabulary WHERE term = ?1",
+                    )?;
+                    let rows = stmt
+                        .query_map(params![term], |row| {
+                            Ok(VocabEntry {
+                                term: row.get(0)?,
+                                expansion: row.get(1)?,
+                                weight: row.get(2)?,
+                                source: parse_source(row.get(3)?),
+                                last_used_ts: row.get(4)?,
+                                use_count: row.get::<_, i64>(5)? as u64,
+                            })
+                        })?
+                        .collect::<rusqlite::Result<Vec<_>>>()?;
+                    for existing in &rows {
+                        let next = crate::vocab::apply_bad(existing, now_ms);
+                        conn.execute(
+                            "UPDATE vocabulary SET weight = ?1, last_used_ts = ?2
+                             WHERE term = ?3 AND expansion = ?4",
+                            params![next.weight, next.last_used_ts, next.term, next.expansion,],
+                        )?;
+                        touched += 1;
+                    }
+                }
+            }
+        }
+        Ok(touched)
+    }
+
     /// Prune using an explicit timestamp (FakeClock).
     pub fn prune_at(&self, policy: &PrunePolicy, now: i64) -> Result<PruneReport> {
         let conn = self.lock()?;
@@ -202,7 +374,7 @@ impl SqliteStore {
         }
         let decayed = conn.execute(
             "UPDATE vocabulary SET weight = weight * 0.98
-             WHERE last_used_ts < ?1",
+             WHERE last_used_ts <= ?1",
             params![now.saturating_sub(crate::vocab::IDLE_MS)],
         )?;
         Ok(PruneReport {
@@ -508,39 +680,7 @@ impl MemoryStore for SqliteStore {
     }
 
     fn feedback(&self, interaction_id: i64, v: Verdict, note: Option<&str>) -> Result<()> {
-        let conn = self.lock()?;
-        let exists: Option<i64> = conn
-            .query_row(
-                "SELECT id FROM interactions WHERE id = ?1",
-                params![interaction_id],
-                |r| r.get(0),
-            )
-            .optional()?;
-        if exists.is_none() {
-            return Err(MemoryError::Message(format!(
-                "no interaction {interaction_id}"
-            )));
-        }
-        let accepted = match v {
-            Verdict::Good => 1i64,
-            Verdict::Bad => 0,
-        };
-        conn.execute(
-            "UPDATE interactions SET accepted = ?1 WHERE id = ?2",
-            params![accepted, interaction_id],
-        )?;
-        conn.execute(
-            "INSERT INTO feedback (interaction_id, verdict, note, ts) VALUES (?1,?2,?3,?4)",
-            params![
-                interaction_id,
-                match v {
-                    Verdict::Good => "good",
-                    Verdict::Bad => "bad",
-                },
-                note,
-                now_ms(),
-            ],
-        )?;
+        self.feedback_at(interaction_id, v, note, now_ms())?;
         Ok(())
     }
 

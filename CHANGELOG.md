@@ -15,6 +15,14 @@ While pre-1.0, breaking changes bump the **minor** version and are called out un
 
 ### Added
 
+- `shx feedback <id> good|bad [--note ...] [--executed] [--accepted]` records
+  acceptance, execution, and implicit vocabulary learning: `good` bumps every
+  retriever token in the intent (`+0.5`, capped at `3.0`, creating `Learned`
+  rows that apply at `>= 1.5`); `bad` lowers matching rows (`-0.5`, floored
+  at `0.0`) without ever creating rows. `--executed` sets `executed=1`,
+  `--accepted` forces `accepted=1`, notes are redacted before store, and
+  prune-time decay (`*0.98` per 30 idle days, `FakeClock`-deterministic) is
+  now boundary-consistent between the SQLite and in-memory stores (T-503).
 - Fast-path cache: lookup keyed by normalized intent and context fingerprint
   `(normalized_intent, os, shell, cwd, project_id)` (< 5 ms latency). Eligible
   commands require Safe risk level and explicit acceptance (`accepted = 1`) or
