@@ -1,0 +1,346 @@
+
+use builtin;
+use str;
+
+set edit:completion:arg-completer[shx] = {|@words|
+    fn spaces {|n|
+        builtin:repeat $n ' ' | str:join ''
+    }
+    fn cand {|text desc|
+        edit:complex-candidate $text &display=$text' '(spaces (- 14 (wcswidth $text)))$desc
+    }
+    var command = 'shx'
+    for word $words[1..-1] {
+        if (str:has-prefix $word '-') {
+            break
+        }
+        set command = $command';'$word
+    }
+    var completions = [
+        &'shx'= {
+            cand -n 'Return up to N candidates (one command per stdout line)'
+            cand --count 'Return up to N candidates (one command per stdout line)'
+            cand --explain 'Reverse mode: explain an existing command (T-601)'
+            cand --profile 'Named context profile'
+            cand --project 'Override project scoping'
+            cand --config 'Alternate config file'
+            cand --json 'Structured JSON object on stdout'
+            cand -i 'Refine session (T-602)'
+            cand --interactive 'Refine session (T-602)'
+            cand --why 'Show which memory entries / routing were used (stderr)'
+            cand --local 'Force the local backend'
+            cand --cloud 'Force the cloud backend (error if unconfigured)'
+            cand --offline 'Forbid network; use mock/fixtures'
+            cand --copy 'Copy the result to the clipboard (T-603)'
+            cand --exit-on-risk 'Exit 3 if risk ≥ Review'
+            cand --no-memory 'Ignore memory for this call'
+            cand --no-color 'Disable ANSI on stderr'
+            cand -y 'Skip tool-side prompts (never execution)'
+            cand --yes 'Skip tool-side prompts (never execution)'
+            cand -v 'Raw model output and full error chains on stderr'
+            cand --verbose 'Raw model output and full error chains on stderr'
+            cand -q 'Suppress non-essential stderr'
+            cand --quiet 'Suppress non-essential stderr'
+            cand -h 'Print help'
+            cand --help 'Print help'
+            cand -V 'Print version'
+            cand --version 'Print version'
+            cand doctor 'Self-check config, DB, and backends (T-007)'
+            cand history 'Browse recorded translations (T-204)'
+            cand snippet 'Named command macros (T-504). Never auto-run as `shx <name>`'
+            cand teach 'Teach shorthand vocabulary (T-205)'
+            cand feedback 'Record feedback on an interaction (T-503)'
+            cand config 'Inspect or edit configuration (T-007)'
+            cand import-history 'Opt-in shell-history ingest (T-605)'
+            cand completion 'Generate shell completions (T-604)'
+            cand man 'Print the man page (T-604)'
+            cand help 'Print this message or the help of the given subcommand(s)'
+        }
+        &'shx;doctor'= {
+            cand --json 'JSON report'
+            cand --redaction-test 'Run the redaction corpus and report per-pattern pass/fail'
+            cand -h 'Print help'
+            cand --help 'Print help'
+        }
+        &'shx;history'= {
+            cand --limit 'Max rows (list/export)'
+            cand --risk 'Filter by risk level: safe|review|danger'
+            cand --grep 'Substring match on input or command'
+            cand --project 'Restrict to the current project_id view'
+            cand --global 'All projects (default)'
+            cand --json 'JSON array on stdout'
+            cand --jsonl 'JSON lines on stdout'
+            cand -h 'Print help'
+            cand --help 'Print help'
+            cand list 'Newest-first list (default if no subcommand)'
+            cand show 'Show one interaction'
+            cand export 'Dump history'
+            cand prune 'Apply retention'
+            cand purge 'Delete stored interactions'
+            cand help 'Print this message or the help of the given subcommand(s)'
+        }
+        &'shx;history;list'= {
+            cand -h 'Print help'
+            cand --help 'Print help'
+        }
+        &'shx;history;show'= {
+            cand --json 'json'
+            cand -h 'Print help'
+            cand --help 'Print help'
+        }
+        &'shx;history;export'= {
+            cand --out 'out'
+            cand --json 'json'
+            cand --jsonl 'jsonl'
+            cand -h 'Print help'
+            cand --help 'Print help'
+        }
+        &'shx;history;prune'= {
+            cand --older-than 'e.g. 180d (days)'
+            cand --keep-danger 'keep-danger'
+            cand -h 'Print help'
+            cand --help 'Print help'
+        }
+        &'shx;history;purge'= {
+            cand --all 'all'
+            cand -h 'Print help'
+            cand --help 'Print help'
+        }
+        &'shx;history;help'= {
+            cand list 'Newest-first list (default if no subcommand)'
+            cand show 'Show one interaction'
+            cand export 'Dump history'
+            cand prune 'Apply retention'
+            cand purge 'Delete stored interactions'
+            cand help 'Print this message or the help of the given subcommand(s)'
+        }
+        &'shx;history;help;list'= {
+        }
+        &'shx;history;help;show'= {
+        }
+        &'shx;history;help;export'= {
+        }
+        &'shx;history;help;prune'= {
+        }
+        &'shx;history;help;purge'= {
+        }
+        &'shx;history;help;help'= {
+        }
+        &'shx;snippet'= {
+            cand -h 'Print help'
+            cand --help 'Print help'
+            cand save 'Store a named command macro (context for the model; never auto-executed)'
+            cand list 'List saved snippets (name + command)'
+            cand show 'Show one snippet. `--copy` prints the command only (stdout)'
+            cand rm 'Delete a snippet by name'
+            cand help 'Print this message or the help of the given subcommand(s)'
+        }
+        &'shx;snippet;save'= {
+            cand --command 'Command text to store (redacted at write)'
+            cand -d 'Optional description used when matching intent tokens'
+            cand --description 'Optional description used when matching intent tokens'
+            cand -h 'Print help'
+            cand --help 'Print help'
+        }
+        &'shx;snippet;list'= {
+            cand --json 'JSON array on stdout'
+            cand -h 'Print help'
+            cand --help 'Print help'
+        }
+        &'shx;snippet;show'= {
+            cand --copy 'Print the command to stdout (clipboard lands in T-603)'
+            cand --json 'JSON object on stdout'
+            cand -h 'Print help'
+            cand --help 'Print help'
+        }
+        &'shx;snippet;rm'= {
+            cand -h 'Print help'
+            cand --help 'Print help'
+        }
+        &'shx;snippet;help'= {
+            cand save 'Store a named command macro (context for the model; never auto-executed)'
+            cand list 'List saved snippets (name + command)'
+            cand show 'Show one snippet. `--copy` prints the command only (stdout)'
+            cand rm 'Delete a snippet by name'
+            cand help 'Print this message or the help of the given subcommand(s)'
+        }
+        &'shx;snippet;help;save'= {
+        }
+        &'shx;snippet;help;list'= {
+        }
+        &'shx;snippet;help;show'= {
+        }
+        &'shx;snippet;help;rm'= {
+        }
+        &'shx;snippet;help;help'= {
+        }
+        &'shx;teach'= {
+            cand --forget 'Term to forget'
+            cand --list 'List vocabulary'
+            cand --json 'JSON list'
+            cand -h 'Print help'
+            cand --help 'Print help'
+        }
+        &'shx;feedback'= {
+            cand --note 'note'
+            cand --executed 'executed'
+            cand --accepted 'accepted'
+            cand -h 'Print help'
+            cand --help 'Print help'
+        }
+        &'shx;config'= {
+            cand -h 'Print help'
+            cand --help 'Print help'
+            cand path 'Print discovered config paths (lowest precedence first)'
+            cand show 'Print the effective merged config'
+            cand get 'get'
+            cand set 'set'
+            cand edit 'Open the global config in $EDITOR'
+            cand init 'Write a commented default config'
+            cand help 'Print this message or the help of the given subcommand(s)'
+        }
+        &'shx;config;path'= {
+            cand -h 'Print help'
+            cand --help 'Print help'
+        }
+        &'shx;config;show'= {
+            cand --json 'JSON object on stdout'
+            cand -h 'Print help'
+            cand --help 'Print help'
+        }
+        &'shx;config;get'= {
+            cand -h 'Print help'
+            cand --help 'Print help'
+        }
+        &'shx;config;set'= {
+            cand -h 'Print help'
+            cand --help 'Print help'
+        }
+        &'shx;config;edit'= {
+            cand -h 'Print help'
+            cand --help 'Print help'
+        }
+        &'shx;config;init'= {
+            cand --force 'Overwrite an existing file'
+            cand -h 'Print help'
+            cand --help 'Print help'
+        }
+        &'shx;config;help'= {
+            cand path 'Print discovered config paths (lowest precedence first)'
+            cand show 'Print the effective merged config'
+            cand get 'get'
+            cand set 'set'
+            cand edit 'Open the global config in $EDITOR'
+            cand init 'Write a commented default config'
+            cand help 'Print this message or the help of the given subcommand(s)'
+        }
+        &'shx;config;help;path'= {
+        }
+        &'shx;config;help;show'= {
+        }
+        &'shx;config;help;get'= {
+        }
+        &'shx;config;help;set'= {
+        }
+        &'shx;config;help;edit'= {
+        }
+        &'shx;config;help;init'= {
+        }
+        &'shx;config;help;help'= {
+        }
+        &'shx;import-history'= {
+            cand --shell 'shell'
+            cand --file 'file'
+            cand --limit 'limit'
+            cand --dry-run 'dry-run'
+            cand -h 'Print help'
+            cand --help 'Print help'
+        }
+        &'shx;completion'= {
+            cand -h 'Print help'
+            cand --help 'Print help'
+        }
+        &'shx;man'= {
+            cand -h 'Print help'
+            cand --help 'Print help'
+        }
+        &'shx;help'= {
+            cand doctor 'Self-check config, DB, and backends (T-007)'
+            cand history 'Browse recorded translations (T-204)'
+            cand snippet 'Named command macros (T-504). Never auto-run as `shx <name>`'
+            cand teach 'Teach shorthand vocabulary (T-205)'
+            cand feedback 'Record feedback on an interaction (T-503)'
+            cand config 'Inspect or edit configuration (T-007)'
+            cand import-history 'Opt-in shell-history ingest (T-605)'
+            cand completion 'Generate shell completions (T-604)'
+            cand man 'Print the man page (T-604)'
+            cand help 'Print this message or the help of the given subcommand(s)'
+        }
+        &'shx;help;doctor'= {
+        }
+        &'shx;help;history'= {
+            cand list 'Newest-first list (default if no subcommand)'
+            cand show 'Show one interaction'
+            cand export 'Dump history'
+            cand prune 'Apply retention'
+            cand purge 'Delete stored interactions'
+        }
+        &'shx;help;history;list'= {
+        }
+        &'shx;help;history;show'= {
+        }
+        &'shx;help;history;export'= {
+        }
+        &'shx;help;history;prune'= {
+        }
+        &'shx;help;history;purge'= {
+        }
+        &'shx;help;snippet'= {
+            cand save 'Store a named command macro (context for the model; never auto-executed)'
+            cand list 'List saved snippets (name + command)'
+            cand show 'Show one snippet. `--copy` prints the command only (stdout)'
+            cand rm 'Delete a snippet by name'
+        }
+        &'shx;help;snippet;save'= {
+        }
+        &'shx;help;snippet;list'= {
+        }
+        &'shx;help;snippet;show'= {
+        }
+        &'shx;help;snippet;rm'= {
+        }
+        &'shx;help;teach'= {
+        }
+        &'shx;help;feedback'= {
+        }
+        &'shx;help;config'= {
+            cand path 'Print discovered config paths (lowest precedence first)'
+            cand show 'Print the effective merged config'
+            cand get 'get'
+            cand set 'set'
+            cand edit 'Open the global config in $EDITOR'
+            cand init 'Write a commented default config'
+        }
+        &'shx;help;config;path'= {
+        }
+        &'shx;help;config;show'= {
+        }
+        &'shx;help;config;get'= {
+        }
+        &'shx;help;config;set'= {
+        }
+        &'shx;help;config;edit'= {
+        }
+        &'shx;help;config;init'= {
+        }
+        &'shx;help;import-history'= {
+        }
+        &'shx;help;completion'= {
+        }
+        &'shx;help;man'= {
+        }
+        &'shx;help;help'= {
+        }
+    ]
+    $completions[$command]
+}

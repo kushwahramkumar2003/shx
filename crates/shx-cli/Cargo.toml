@@ -30,6 +30,8 @@ path = "../../tests/invariants/print_only.rs"
 anyhow.workspace = true
 arboard = { version = "2", optional = true, default-features = false }
 clap.workspace = true
+clap_complete = "4"
+clap_mangen = "0.2"
 serde.workspace = true
 serde_json.workspace = true
 shx-core.workspace = true

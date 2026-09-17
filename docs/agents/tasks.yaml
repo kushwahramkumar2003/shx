@@ -647,8 +647,11 @@ tasks:
     deliverables: [shx-cli/src/commands/completion.rs, man/shx.1]
     acceptance:
       - valid output for zsh/bash/fish/powershell; shipped in release archive
-    status: pending
-    owner: null
+    notes: verify=cargo xtask ci green (9/9 incl. deny/audit, size 4.98MB); 3 completion unit + 7 completion CLI tests. clap_complete 4 + clap_mangen 0.2 (deny-clean, no allow changes). Snapshots man/shx.1 + contrib/completions/shx.* drift-tested for T-607 to bundle. Unblocks nothing (T-607 consumes the snapshots).
+    status: completed
+    owner: muse-spark
+    branch: feat/t-604-completion-man
+    pr_url: local-only (no remote)
 
   - id: T-605
     title: import-history (opt-in)

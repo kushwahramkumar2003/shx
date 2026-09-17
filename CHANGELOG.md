@@ -15,6 +15,10 @@ While pre-1.0, breaking changes bump the **minor** version and are called out un
 
 ### Added
 
+- `shx completion <shell>` (bash/zsh/fish/powershell/elvish) and `shx man`:
+  both generated from the clap definition so they cannot drift.
+  Pre-generated snapshots live at `contrib/completions/shx.*` and `man/shx.1`
+  (drift-tested byte-for-byte), ready for release archives to ship (T-607).
 - `-n/--count` candidates and `--copy`: `-n 3` prints one command per stdout
   line (ranked best first; fewer lines when the backend returns fewer).
   `--copy` also copies the top-ranked candidate to the system clipboard via
