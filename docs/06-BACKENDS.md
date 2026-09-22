@@ -131,6 +131,14 @@ intent ──► backend selection                                    │
 ### Ollama (P0, reference backend)
 
 - Endpoint `POST {base_url}/api/chat`, default `http://127.0.0.1:11434`.
+  `stream: true` (NDJSON). Thinking is left on (no `think: false`). Chunks are
+  read so `timeout_ms` is the idle gap between tokens, not a cap on the whole
+  reply. The reasoning trace is not printed. Stdout is the parsed command
+  only. `num_predict` is the request cap plus 2048, because Ollama counts
+  thinking tokens toward that limit and a 512-token cap stops inside the
+  trace (`done_reason: length`) before `message.content` exists. If content
+  is still empty, the command is parsed from `message.thinking`. A silent
+  socket for `timeout_ms` is still `ErrorKind::Timeout`.
 - Default model `qwen3:14b` (the reference machine's existing setup). Other good
   picks documented in the README once benchmarks exist: `qwen2.5-coder:7b` for
   speed, `qwen3:14b` for quality, anything ≥ 7B instruct for translation.

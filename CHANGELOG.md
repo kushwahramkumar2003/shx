@@ -15,6 +15,13 @@ While pre-1.0, breaking changes bump the **minor** version and are called out un
 
 ### Added
 
+- Ollama chat streams internally and leaves model thinking on. `[backend.local]
+  timeout_ms` is the idle gap between chunks, so a slow or thinking model is
+  not cut off at 8 seconds while it is still writing. The reasoning trace is
+  not printed. Stdout is only the parsed command. `num_predict` adds 2048
+  tokens of headroom so the think trace does not consume the whole budget
+  before the JSON command. If `message.content` is empty, the command is
+  taken from `message.thinking`.
 - Release packaging (cargo-dist 0.32, `dist-workspace.toml`): tag-triggered
   `.github/workflows/release.yml` builds 5 targets
   (x86_64/aarch64 × macOS/Linux-gnu + x86_64 Windows) with shell/powershell

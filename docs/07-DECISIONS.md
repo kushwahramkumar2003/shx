@@ -116,9 +116,11 @@ size target conflict with pulling in a full `tokio` runtime.
 `Backend` trait is synchronous. The HTTP layer is hidden behind the trait so it
 can be swapped for `reqwest`+`tokio` if streaming/concurrency is ever needed.
 
-**Consequences.** Smaller binary, faster cold start, simpler code. Streaming and
-parallel candidate generation are deferred. The trait remains the seam, so the
-swap is contained to `shx-llm`.
+**Consequences.** Smaller binary, faster cold start, simpler code. Parallel
+candidate generation stays deferred. Ollama translations stream as blocking
+NDJSON on the same `ureq` client: `timeout_ms` is the idle gap between chunks,
+not a cap on the whole generation, and no async runtime is added. The trait
+remains the seam.
 
 ---
 
