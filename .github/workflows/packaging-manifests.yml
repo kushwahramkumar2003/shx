@@ -1,0 +1,83 @@
+# Scoop/winget manifests (task T-607).
+#
+# cargo-dist 0.32 generates shell, powershell, and Homebrew installers but
+# has no scoop or winget support, so packaging/scoop + packaging/winget hold
+# versioned templates. On every published GitHub Release this workflow fills
+# __SHX_VERSION__ / __SHX_WINDOWS_X64_SHA256__ from the tag and the real
+# Windows asset hash and uploads the filled copies back to the release.
+# `dist-workspace.toml` and release.yml stay cargo-dist-owned: this file is
+# the only hand-written release plumbing.
+name: packaging-manifests
+
+on:
+  release:
+    types: [published]
+  pull_request:
+    paths:
+      - "packaging/**"
+      - ".github/workflows/packaging-manifests.yml"
+  push:
+    branches: [main]
+    paths:
+      - "packaging/**"
+      - ".github/workflows/packaging-manifests.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    if: github.event_name != 'release'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validate scoop manifest template
+        run: |
+          jq empty packaging/scoop/shx.json
+          grep -q '__SHX_VERSION__' packaging/scoop/shx.json
+          grep -q '__SHX_WINDOWS_X64_SHA256__' packaging/scoop/shx.json
+          grep -q 'autoupdate' packaging/scoop/shx.json
+
+      - name: Validate winget manifest templates
+        run: |
+          for f in packaging/winget/*.yaml; do
+            grep -q '^PackageIdentifier: shx.shx$' "$f"
+            grep -q '__SHX_VERSION__' "$f"
+          done
+          grep -q '^ManifestType: installer$' packaging/winget/shx.installer.yaml
+          grep -q 'NestedInstallerFiles' packaging/winget/shx.installer.yaml
+          grep -q '__SHX_WINDOWS_X64_SHA256__' packaging/winget/shx.installer.yaml
+
+  fill-and-upload:
+    if: github.event_name == 'release'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Fill templates from the published release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TAG="${GITHUB_REF_NAME}"
+          VERSION="${TAG#v}"
+          gh release download "$TAG" -p 'shx-x86_64-pc-windows-msvc.zip' -D /tmp/shx-pkg
+          SHA="$(sha256sum /tmp/shx-pkg/shx-x86_64-pc-windows-msvc.zip | cut -d' ' -f1)"
+          mkdir -p /tmp/shx-out/scoop /tmp/shx-out/winget
+          sed -e "s/__SHX_VERSION__/$VERSION/g" -e "s/__SHX_WINDOWS_X64_SHA256__/$SHA/g" \
+            packaging/scoop/shx.json > /tmp/shx-out/scoop/shx.json
+          for f in packaging/winget/*.yaml; do
+            sed -e "s/__SHX_VERSION__/$VERSION/g" -e "s/__SHX_WINDOWS_X64_SHA256__/$SHA/g" \
+              "$f" > "/tmp/shx-out/winget/$(basename "$f")"
+          done
+          jq empty /tmp/shx-out/scoop/shx.json
+          grep -q "$SHA" /tmp/shx-out/winget/shx.installer.yaml
+
+      - name: Upload filled manifests to the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release upload "${GITHUB_REF_NAME}" --clobber \
+            /tmp/shx-out/scoop/shx.json /tmp/shx-out/winget/*.yaml
