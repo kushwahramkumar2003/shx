@@ -1,4 +1,7 @@
 //! Ollama backend: `POST /api/chat` + `GET /api/tags` (docs/06-BACKENDS.md §4).
+//!
+//! Chat is streamed (`stream: true`) so `timeout_ms` is the idle gap between
+//! chunks. Tokens are not printed. Stdout receives only the parsed command.
 
 use std::time::{Duration, Instant};
 
@@ -66,13 +69,15 @@ impl OllamaBackend {
                 { "role": "system", "content": req.system },
                 { "role": "user", "content": req.user }
             ],
-            "stream": false,
+            "stream": true,
             "keep_alive": settings.keep_alive,
             "format": req.schema.json,
             "options": {
                 "temperature": req.temperature,
                 "num_ctx": settings.num_ctx,
-                "num_predict": req.max_tokens
+                // Thinking tokens count against num_predict. The request cap
+                // fits the JSON command and is cut off before that JSON exists.
+                "num_predict": ollama_num_predict(req.max_tokens)
             }
         })
     }
@@ -120,7 +125,7 @@ impl Backend for OllamaBackend {
         Capabilities {
             context_len: self.settings.num_ctx,
             structured_output: true,
-            streaming: false,
+            streaming: true,
             cost_tier: CostTier::Local,
         }
     }
@@ -155,51 +160,105 @@ impl Backend for OllamaBackend {
     fn translate(&self, req: &TranslateRequest) -> Result<TranslateResponse, BackendError> {
         let body = Self::chat_request_body(&self.settings, req);
         let started = Instant::now();
-        let resp = self
-            .transport
-            .post_json(&self.url("/api/chat"), &body, self.timeout())
-            .map_err(|e| self.map_transport(e))?;
+        let mut acc = StreamAccum::default();
+        let mut bad: Option<String> = None;
+        let read = self.transport.post_json_lines(
+            &self.url("/api/chat"),
+            &body,
+            self.timeout(),
+            &mut |line| match acc.push_line(line) {
+                Ok(()) => Ok(()),
+                Err(msg) => {
+                    bad = Some(msg);
+                    Err(TransportError::Other("stream-parse".into()))
+                }
+            },
+        );
+        if let Some(msg) = bad {
+            return Err(crate::error::from_bad_output("ollama", msg));
+        }
+        read.map_err(|e| self.map_transport(e))?;
         let latency_ms = started.elapsed().as_millis() as u64;
 
-        let envelope: Value = serde_json::from_str(&resp.body).map_err(|e| {
-            crate::error::from_bad_output("ollama", format!("ollama envelope: {e}"))
-        })?;
-        let content = envelope
-            .get("message")
-            .and_then(|m| m.get("content"))
-            .and_then(|c| c.as_str())
-            .ok_or_else(|| {
-                crate::error::from_bad_output("ollama", "ollama response missing message.content")
-            })?;
-
-        let parsed = parse_response(content)
+        // Thinking models sometimes leave `content` empty and put the JSON
+        // in `message.thinking`. Prefer content; fall back to that text.
+        let content = if acc.content.is_empty() {
+            acc.thinking
+        } else {
+            acc.content
+        };
+        if content.is_empty() {
+            return Err(crate::error::from_bad_output(
+                "ollama",
+                "ollama response missing message.content",
+            ));
+        }
+        let parsed = parse_response(&content)
             .map_err(|e| crate::error::from_bad_output("ollama", e.to_string()))?;
         let confidence = parsed.candidates.first().map(|c| c.confidence);
-        let usage = Usage {
-            prompt_tokens: envelope
-                .get("prompt_eval_count")
-                .and_then(|n| n.as_u64())
-                .map(|n| n as u32),
-            completion_tokens: envelope
-                .get("eval_count")
-                .and_then(|n| n.as_u64())
-                .map(|n| n as u32),
-        };
-        let model = envelope
-            .get("model")
-            .and_then(|m| m.as_str())
-            .unwrap_or(&self.settings.model)
-            .to_string();
+        let model = acc.model.unwrap_or_else(|| self.settings.model.clone());
 
         Ok(TranslateResponse {
             candidates: parsed.candidates,
-            raw: content.to_string(),
-            usage,
+            raw: content,
+            usage: Usage {
+                prompt_tokens: acc.prompt_tokens,
+                completion_tokens: acc.completion_tokens,
+            },
             backend_id: "ollama".into(),
             model,
             latency_ms,
             confidence,
         })
+    }
+}
+
+/// Room for a thinking trace plus the JSON command.
+///
+/// Ollama counts thinking toward `num_predict`. A 512-token cap ends with
+/// `done_reason: length`, empty `content`, and a reasoning trace that has
+/// no JSON object.
+const OLLAMA_THINKING_HEADROOM: u32 = 2048;
+
+fn ollama_num_predict(max_tokens: u32) -> u32 {
+    max_tokens.saturating_add(OLLAMA_THINKING_HEADROOM)
+}
+
+/// One Ollama `/api/chat` stream, assembled from NDJSON lines.
+#[derive(Debug, Default)]
+struct StreamAccum {
+    content: String,
+    thinking: String,
+    model: Option<String>,
+    prompt_tokens: Option<u32>,
+    completion_tokens: Option<u32>,
+}
+
+impl StreamAccum {
+    /// Fold one JSON line. Nothing is written to the terminal.
+    fn push_line(&mut self, line: &str) -> Result<(), String> {
+        let v: Value = serde_json::from_str(line).map_err(|e| format!("ollama stream: {e}"))?;
+        if let Some(err) = v.get("error").and_then(|e| e.as_str()) {
+            return Err(err.to_string());
+        }
+        if let Some(model) = v.get("model").and_then(|m| m.as_str())
+            && !model.is_empty()
+        {
+            self.model = Some(model.to_string());
+        }
+        if let Some(n) = v.get("prompt_eval_count").and_then(|n| n.as_u64()) {
+            self.prompt_tokens = Some(n as u32);
+        }
+        if let Some(n) = v.get("eval_count").and_then(|n| n.as_u64()) {
+            self.completion_tokens = Some(n as u32);
+        }
+        if let Some(thinking) = v.pointer("/message/thinking").and_then(|t| t.as_str()) {
+            self.thinking.push_str(thinking);
+        }
+        if let Some(content) = v.pointer("/message/content").and_then(|c| c.as_str()) {
+            self.content.push_str(content);
+        }
+        Ok(())
     }
 }
 
@@ -281,7 +340,9 @@ mod tests {
         let body = OllamaBackend::chat_request_body(&settings(), &req);
         assert_eq!(body["keep_alive"], "30m");
         assert_eq!(body["options"]["num_ctx"], 4096);
-        assert_eq!(body["stream"], false);
+        assert_eq!(body["stream"], true);
+        assert_eq!(body["options"]["num_predict"], 256 + 2048);
+        assert!(body.get("think").is_none(), "thinking stays at the model's default");
         assert_eq!(body["model"], "qwen3:14b");
         assert!(
             body["format"].is_object(),
@@ -366,6 +427,37 @@ mod tests {
         assert_eq!(resp.candidates[0].command, "true");
         assert_eq!(resp.usage.prompt_tokens, Some(12));
         assert_eq!(resp.backend_id, "ollama");
+    }
+
+    #[test]
+    fn stream_chunks_keep_usage_and_hide_thinking() {
+        let mut acc = StreamAccum::default();
+        acc.push_line(r#"{"message":{"thinking":"hmm"},"done":false}"#)
+            .expect("chunk");
+        acc.push_line(r#"{"message":{"content":"{\"commands\":[{\"command\":\"true\",\"explanation\":\"n\",\"confidence\":1}]}"},"done":false}"#)
+            .expect("chunk");
+        acc.push_line(r#"{"model":"openbmb/minicpm5-2b","message":{"content":""},"done":true,"prompt_eval_count":405,"eval_count":80}"#)
+            .expect("done");
+        assert_eq!(acc.thinking, "hmm");
+        assert_eq!(acc.prompt_tokens, Some(405));
+        assert_eq!(acc.completion_tokens, Some(80));
+        assert_eq!(acc.model.as_deref(), Some("openbmb/minicpm5-2b"));
+        let parsed = parse_response(&acc.content).expect("json");
+        assert_eq!(parsed.candidates[0].command, "true");
+    }
+
+    #[test]
+    fn empty_content_falls_back_to_thinking_json() {
+        let json = r#"{"commands":[{"command":"lsof -ti tcp:3000 | xargs kill -9","explanation":"port","confidence":0.8}],"risk_notes":[],"assumptions":[]}"#;
+        let mut acc = StreamAccum::default();
+        acc.push_line(&format!(
+            r#"{{"message":{{"thinking":{json_lit},"content":""}},"done":true}}"#,
+            json_lit = serde_json::to_string(json).unwrap()
+        ))
+        .expect("line");
+        assert!(acc.content.is_empty());
+        let parsed = parse_response(&acc.thinking).expect("thinking json");
+        assert!(parsed.candidates[0].command.contains("lsof"));
     }
 
     #[test]

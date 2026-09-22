@@ -28,7 +28,7 @@ pub struct Capabilities {
     pub context_len: u32,
     /// Native structured-output support (schema / tool-use / json_object).
     pub structured_output: bool,
-    /// Streaming support. Always `false` in v1 (ADR-006).
+    /// Provider can stream tokens (Ollama NDJSON). Still synchronous (ADR-006).
     pub streaming: bool,
     /// Local vs cloud cost class, used by routing notices.
     pub cost_tier: CostTier,
