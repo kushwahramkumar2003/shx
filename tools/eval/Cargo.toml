@@ -7,6 +7,9 @@ edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
 description = "Deterministic eval harness scoring translate.json fixtures"
+repository.workspace = true
+# Dev-only harness (like xtask): never published, never released.
+publish = false
 
 [[bin]]
 name = "shx-eval"

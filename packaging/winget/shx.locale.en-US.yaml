@@ -1,0 +1,14 @@
+# winget-pkgs submission file 2/3 (template: tokens filled at release time).
+PackageIdentifier: shx.shx
+PackageVersion: __SHX_VERSION__
+PackageLocale: en-US
+Publisher: shx
+PackageName: shx
+License: MIT
+ShortDescription: Print-only natural-language to shell-command translator
+Moniker: shx
+Tags:
+  - shell
+  - cli
+ManifestType: locale
+ManifestVersion: 1.4.0

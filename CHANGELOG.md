@@ -15,6 +15,16 @@ While pre-1.0, breaking changes bump the **minor** version and are called out un
 
 ### Added
 
+- Release packaging (cargo-dist 0.32, `dist-workspace.toml`): tag-triggered
+  `.github/workflows/release.yml` builds 5 targets
+  (x86_64/aarch64 × macOS/Linux-gnu + x86_64 Windows) with shell/powershell
+  installers and a Homebrew formula; every archive bundles the binary, man
+  page, completions, shell wrappers, licenses, and README. Scoop and winget
+  ship as versioned templates (`packaging/scoop`, `packaging/winget`) filled
+  with the real version/hash and uploaded by
+  `packaging-manifests.yml` on each published release. Size gate (25 MB)
+  enforced by `cargo xtask ci` (binary is ~5 MB). Unreleased URLs use the
+  `<org>` placeholder (T-607, unblocks T-608).
 - Opt-in shell wrappers (`contrib/shell/shx.zsh`, `contrib/shell/shx.bash`,
   ≤30 lines each): type a line, press `Ctrl-G`, and the `shx --exit-on-risk`
   result fills the edit buffer in place. Exit 3/4 (or anything else) leaves

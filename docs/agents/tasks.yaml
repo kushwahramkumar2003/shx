@@ -695,8 +695,11 @@ tasks:
     deliverables: [dist-workspace.toml, .github/workflows/release.yml]
     acceptance:
       - release workflow builds 5 targets; binary size gate met; brew/scoop/winget manifests
-    status: pending
-    owner: null
+    notes: verify=cargo xtask ci green (9/9); dist 0.32.0 plan lists 1 app x 5 targets + shell/powershell/homebrew; host dist build produced archive+formula+checksums with man/completions/shell bundled. dist-workspace.toml + release.yml 100% tool-generated (init flags/JSON/machine interface); repository/homepage/publish=false are project metadata. Scoop/winget have no cargo-dist support: versioned templates + fill-and-upload workflow, per explicit direction. Size gate via xtask ci step 9 (5.00MB vs 25MB). Unblocks=T-608.
+    status: completed
+    owner: muse-spark
+    branch: feat/t-607-packaging
+    pr_url: local-only (no remote)
 
   - id: T-608
     title: Docs site + CHANGELOG

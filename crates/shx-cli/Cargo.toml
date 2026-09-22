@@ -7,6 +7,8 @@ edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
 description = "Print-only natural-language to shell-command translator"
+repository.workspace = true
+homepage.workspace = true
 
 [[bin]]
 name = "shx"
