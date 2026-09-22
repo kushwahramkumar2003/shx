@@ -1,5 +1,6 @@
 //! Blocking HTTP via `ureq` + rustls (ADR-006). No tokio, no reqwest, no OpenSSL.
 
+use std::io::{BufRead, BufReader};
 use std::time::Duration;
 
 use serde_json::Value;
@@ -67,6 +68,29 @@ pub trait Transport: Send + Sync {
         timeout: Duration,
         headers: &[(&str, &str)],
     ) -> Result<HttpResponse, TransportError>;
+
+    /// POST JSON and deliver each non-empty response line.
+    ///
+    /// The default reads the whole body via [`Self::post_json`], so `timeout`
+    /// is still the overall deadline. [`UreqTransport`] overrides this and
+    /// treats `timeout` as the idle gap between socket reads, which lets a
+    /// streaming body run longer than one chunk interval.
+    fn post_json_lines(
+        &self,
+        url: &str,
+        body: &Value,
+        timeout: Duration,
+        on_line: &mut dyn FnMut(&str) -> Result<(), TransportError>,
+    ) -> Result<(), TransportError> {
+        let resp = self.post_json(url, body, timeout)?;
+        for line in resp.body.lines() {
+            if line.is_empty() {
+                continue;
+            }
+            on_line(line)?;
+        }
+        Ok(())
+    }
 }
 
 /// Production transport.
@@ -92,6 +116,53 @@ impl Transport for UreqTransport {
         }
         let resp = req.send_json(body.clone()).map_err(map_ureq)?;
         read_response(resp)
+    }
+
+    fn post_json_lines(
+        &self,
+        url: &str,
+        body: &Value,
+        timeout: Duration,
+        on_line: &mut dyn FnMut(&str) -> Result<(), TransportError>,
+    ) -> Result<(), TransportError> {
+        // Idle read timeout, not an overall deadline. Each successful read
+        // starts the wait again, so a model that keeps emitting tokens is
+        // not cut off at `timeout`.
+        let agent = ureq::AgentBuilder::new()
+            .timeout_connect(timeout)
+            .timeout_read(timeout)
+            .timeout_write(timeout)
+            .build();
+        let resp = agent.post(url).send_json(body.clone()).map_err(map_ureq)?;
+        let status = resp.status();
+        if !(200..300).contains(&status) {
+            let body = resp.into_string().unwrap_or_default();
+            return Err(TransportError::Status { code: status, body });
+        }
+        let mut reader = BufReader::new(resp.into_reader());
+        let mut line = String::new();
+        loop {
+            line.clear();
+            let n = reader.read_line(&mut line).map_err(map_io)?;
+            if n == 0 {
+                break;
+            }
+            let trimmed = line.trim_end_matches(['\r', '\n']);
+            if trimmed.is_empty() {
+                continue;
+            }
+            on_line(trimmed)?;
+        }
+        Ok(())
+    }
+}
+
+fn map_io(err: std::io::Error) -> TransportError {
+    let msg = err.to_string();
+    if err.kind() == std::io::ErrorKind::TimedOut || is_timeout(&msg) {
+        TransportError::Timeout(msg)
+    } else {
+        TransportError::Other(msg)
     }
 }
 
