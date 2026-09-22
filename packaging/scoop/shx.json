@@ -1,0 +1,26 @@
+{
+    "version": "__SHX_VERSION__",
+    "description": "Print-only natural-language to shell-command translator",
+    "homepage": "https://github.com/<org>/shx",
+    "license": "MIT OR Apache-2.0",
+    "architecture": {
+        "64bit": {
+            "url": "https://github.com/<org>/shx/releases/download/v__SHX_VERSION__/shx-x86_64-pc-windows-msvc.zip",
+            "hash": "__SHX_WINDOWS_X64_SHA256__",
+            "bin": "shx.exe",
+            "extract_dir": "shx-x86_64-pc-windows-msvc"
+        }
+    },
+    "checkver": {
+        "url": "https://github.com/<org>/shx/releases",
+        "regex": "v([\\d.]+)/shx-x86_64-pc-windows-msvc\\.zip"
+    },
+    "autoupdate": {
+        "architecture": {
+            "64bit": {
+                "url": "https://github.com/<org>/shx/releases/download/v$version/shx-x86_64-pc-windows-msvc.zip",
+                "extract_dir": "shx-x86_64-pc-windows-msvc"
+            }
+        }
+    }
+}

@@ -1,0 +1,6 @@
+# winget-pkgs submission file 1/3 (template: tokens filled at release time).
+PackageIdentifier: shx.shx
+PackageVersion: __SHX_VERSION__
+DefaultLocale: en-US
+ManifestType: version
+ManifestVersion: 1.4.0

@@ -1,0 +1,14 @@
+# winget-pkgs submission file 3/3 (template: tokens filled at release time).
+PackageIdentifier: shx.shx
+PackageVersion: __SHX_VERSION__
+MinimumOSVersion: 10.0.17763.0
+InstallerType: zip
+NestedInstallerType: portable
+NestedInstallerFiles:
+  - RelativeFilePath: shx-x86_64-pc-windows-msvc/shx.exe
+Installers:
+  - Architecture: x64
+    InstallerUrl: https://github.com/<org>/shx/releases/download/v__SHX_VERSION__/shx-x86_64-pc-windows-msvc.zip
+    InstallerSha256: __SHX_WINDOWS_X64_SHA256__
+ManifestType: installer
+ManifestVersion: 1.4.0
